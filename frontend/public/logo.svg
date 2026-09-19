@@ -1,0 +1,22 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="apShieldGrad" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5A5F"/>
+      <stop offset="50%" stop-color="#C04CFD"/>
+      <stop offset="100%" stop-color="#836EF9"/>
+    </linearGradient>
+    <linearGradient id="apGlassFill" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E1638" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#0B0917" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <polygon points="50,5 89,27.5 89,72.5 50,95 11,72.5 11,27.5" fill="url(#apGlassFill)" stroke="url(#apShieldGrad)" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="50" cy="50" r="32" stroke="#00F2FE" stroke-width="1.2" stroke-dasharray="4 4" stroke-opacity="0.6"/>
+  <path d="M50,22 L74,64 M50,22 L26,64 M26,64 L74,64 M50,22 L50,50 M26,64 L50,50 M74,64 L50,50" stroke="#836EF9" stroke-width="1" stroke-opacity="0.5"/>
+  <polygon points="50,38 62,50 50,62 38,50" fill="url(#apShieldGrad)" opacity="0.85"/>
+  <circle cx="50" cy="50" r="4.5" fill="#FFFFFF"/>
+  <circle cx="50" cy="22" r="4.5" fill="#FF5A5F"/>
+  <circle cx="74" cy="64" r="4.5" fill="#00F2FE"/>
+  <circle cx="26" cy="64" r="4.5" fill="#836EF9"/>
+  <path d="M45,50 L48.5,53.5 L55,47" stroke="#0B0917" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -38,24 +38,35 @@ class AgentExecutionClient:
     # --- internal transport -------------------------------------------------
 
     async def _request(self, method: str, path: str, json_body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        import httpx
-
         url = f"{self.base_url}{path}"
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                response = await client.request(method, url, json=json_body)
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    response = await client.request(method, url, json=json_body)
+                if response.status_code >= 500:
+                    raise AgentServiceError(
+                        f"Canonical agent service returned {response.status_code} for {path}: {response.text[:300]}"
+                    )
+                return response.json()
+            except ImportError:
+                import urllib.request
+                import json as _json
+                req = urllib.request.Request(url, method=method)
+                req.add_header("Content-Type", "application/json")
+                data_bytes = _json.dumps(json_body).encode("utf-8") if json_body else None
+                loop = asyncio.get_event_loop()
+                def _do():
+                    with urllib.request.urlopen(req, data=data_bytes, timeout=self.timeout_seconds) as resp:
+                        return resp.getcode(), resp.read().decode("utf-8")
+                code, text = await loop.run_in_executor(None, _do)
+                if code >= 500:
+                    raise AgentServiceError(f"Canonical agent service returned {code} for {path}: {text[:300]}")
+                return _json.loads(text)
+        except AgentServiceError:
+            raise
         except Exception as exc:  # network / DNS / connect errors
             raise AgentServiceError(f"Canonical agent service unreachable at {url}: {exc}") from exc
-
-        if response.status_code >= 500:
-            raise AgentServiceError(
-                f"Canonical agent service returned {response.status_code} for {path}: {response.text[:300]}"
-            )
-
-        try:
-            return response.json()
-        except Exception as exc:
-            raise AgentServiceError(f"Canonical agent service returned non-JSON for {path}") from exc
 
     # --- public API ---------------------------------------------------------
 

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useAccount, useConnect, useDisconnect, useReadContract, useBalance } from "wagmi";
 import { formatEther } from "viem";
+import AgentProofLogo from "../../components/AgentProofLogo";
 import { monadTestnet, explorerAddressUrl, explorerTxUrl } from "../../lib/chain";
 import { AGENT_WALLET_ADDRESS, AGENT_ESCROW_ADDRESS, PROVIDER_ADDRESS, agentWalletAbi, agentEscrowAbi } from "../../lib/contracts";
 import { submitTask, listTasks, buildLifecycle, isRealTxHash, getSystemStatus } from "../../lib/api";
@@ -126,13 +128,18 @@ function Header() {
   return (
     <header className="border-b border-surface-container bg-surface-container-lowest">
       <div className="max-w-[1200px] mx-auto px-gutter h-20 flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">
-            AgentProof
-          </span>
-          <span className="font-body-sm text-body-sm text-secondary">
-            Spend by policy. Work autonomously. Get paid by proof.
-          </span>
+        <div className="flex items-center gap-space-lg">
+          <Link href="/">
+            <AgentProofLogo variant="compact" size="sm" theme="light" />
+          </Link>
+          <nav className="hidden md:flex items-center gap-space-md">
+            <Link className="font-label-md text-label-md text-on-surface font-bold border-b-2 border-primary-container pb-0.5" href="/dashboard">Tasks</Link>
+            <Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" href="/marketplace">Marketplace</Link>
+            <Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" href="/create-task">Create Task</Link>
+            <Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" href="/preloader">3D Preloader</Link>
+            <Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" href="/logo">Brand Identity</Link>
+            <Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" href="/protocol">Protocol</Link>
+          </nav>
         </div>
         <div className="flex items-center gap-space-md">
           <div className="hidden sm:flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low border border-surface-container">

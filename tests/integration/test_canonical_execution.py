@@ -15,6 +15,7 @@ import asyncio
 import pytest
 
 try:
+    import httpx
     from fastapi.testclient import TestClient
 except Exception:
     from app.testing.client import InMemoryTestClient as TestClient

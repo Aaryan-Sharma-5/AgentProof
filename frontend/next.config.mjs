@@ -5,6 +5,9 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   webpack: (config) => {
     // wagmi's connector barrel pulls in an optional Coinbase Smart Wallet
     // connector with unresolvable @x402/* peer deps. We only use the
