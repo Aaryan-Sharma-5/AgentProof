@@ -29,13 +29,14 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-# Strict CORS configuration
+# Strict CORS: an explicit origin allowlist. "*" with credentials is invalid per the CORS spec
+# and is refused outside development by Settings.model_post_init.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_allow_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Include v1 routes
@@ -59,6 +60,31 @@ async def health_check():
         "environment": settings.environment,
         "chain_id": settings.chain_id,
         "default_currency": settings.default_currency,
+        "use_mock_payments": settings.use_mock_payments,
+        "agent_service_url": settings.agent_service_url,
+    }
+
+
+@app.get("/v1/system/status", status_code=status.HTTP_200_OK, tags=["Health"])
+async def system_status():
+    """Reports whether the canonical agent service (the only signer) is reachable."""
+    from app.services.agent_execution_client import AgentExecutionClient, AgentServiceError
+
+    agent_service: dict = {"reachable": False}
+    try:
+        agent_service = {"reachable": True, **(await AgentExecutionClient().health())}
+    except AgentServiceError as exc:
+        agent_service = {"reachable": False, "error": str(exc)}
+
+    return {
+        "status": "ok",
+        "environment": settings.environment,
+        "chain_id": settings.chain_id,
+        "use_mock_payments": settings.use_mock_payments,
+        "agent_wallet": settings.agent_wallet_address,
+        "agent_escrow": settings.escrow_address,
+        "wallet_max_payment_mon": settings.wallet_max_payment_mon,
+        "agent_service": agent_service,
     }
 
 

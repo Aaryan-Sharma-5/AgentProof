@@ -56,7 +56,11 @@ def test_payment_execution_success(payment_service, mock_gateway):
     assert res.success is True
     assert res.status == PaymentStatus.CONFIRMED
     assert res.tx_hash is not None
-    assert res.tx_hash.startswith("0x")
+    # A simulated payment must be structurally distinguishable from a real Monad tx hash so it can
+    # never be rendered as an explorer link. See MockPaymentAdapter (TEST-ONLY).
+    assert res.is_mock is True
+    assert res.tx_hash.startswith("mock:0x")
+    assert not res.tx_hash.startswith("0x")
     assert mock_gateway.balance_mon == pytest.approx(0.98)
 
 

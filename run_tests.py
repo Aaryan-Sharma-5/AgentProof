@@ -30,6 +30,12 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
         pass
 
 # Ensure current directory is in sys.path
+# The suite is hermetic: it must never dispatch to the canonical agent service or touch a real
+# chain. Mock payments are opted into here, explicitly, before app.config.settings is imported.
+# Production and local demo default to USE_MOCK_PAYMENTS=false (see app/config/settings.py).
+os.environ.setdefault("USE_MOCK_PAYMENTS", "true")
+os.environ.setdefault("ENVIRONMENT", "test")
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
@@ -54,6 +60,7 @@ DEFAULT_TEST_MODULES = [
     "tests.integration.test_request_flow",
     "tests.integration.test_marketplace_flow",
     "tests.integration.test_payment_flow",
+    "tests.integration.test_canonical_execution",
 ]
 
 

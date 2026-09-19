@@ -8,14 +8,18 @@ Core thesis:
 
 > Spend by policy. Work autonomously. Get paid by proof.
 
+Core economic claim:
+
+> Agents cannot spend beyond policy, and they cannot earn without proof.
+
 AgentProof combines two complementary primitives:
 
 1. **AgentFlow** controls what an autonomous agent is allowed to spend.
 2. **ProofBounty** controls when an autonomous agent is allowed to receive payment for completed work.
 
-The complete loop is:
+The complete product loop is:
 
-```
+```text
 USER
   ↓
 TASK + REWARD + SPENDING LIMIT
@@ -31,68 +35,212 @@ PROVE RESULT
 GET PAID
 ```
 
-The core economic claim is:
-
-> Agents cannot spend beyond policy, and they cannot earn without proof.
+The hackathon MVP is intentionally narrow. Reliability of this loop is more important than feature count.
 
 ---
 
-## 2. Architecture
+## 2. Current Repository State
 
-AgentProof consists of two independent on-chain financial primitives.
+The repository contains three major layers.
 
+### Frontend
+
+`frontend/`
+
+- Next.js 14
+- wagmi v2
+- viem
+- Monad Testnet RPC reads
+- wallet connection
+- dashboard and supporting pages
+
+The dashboard must evolve from a static/demo-state interface into the live client for the FastAPI request lifecycle.
+
+### Canonical Economic Engine
+
+`agents/`
+
+TypeScript + viem/tsx.
+
+This is the authoritative execution path for the economic loop.
+
+It owns:
+
+- HTTP 402 handling
+- spending enforcement
+- AgentWallet payment
+- provider interaction
+- deterministic result checks
+- trusted evaluator signature
+- AgentEscrow settlement
+- receipt confirmation
+
+This path has already been proven on Monad Testnet.
+
+### Product / Orchestration Layer
+
+`app/`
+
+Python + FastAPI + LangGraph.
+
+It owns:
+
+- API lifecycle
+- request state
+- natural-language requirement parsing
+- discovery
+- risk analysis
+- pre-flight policy checks
+- approval flow
+- orchestration
+- audit events
+- optional/advisory semantic verification
+- frontend-facing status
+
+It must NOT become the authoritative economic executor.
+
+---
+
+## 3. Final Integrated Architecture
+
+The target architecture is:
+
+```text
+                         USER
+                           │
+                           ▼
+                 ┌─────────────────┐
+                 │   NEXT.JS UI    │
+                 │ task + wallet   │
+                 └────────┬────────┘
+                          │
+                 POST /v1/agent-requests
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │     FASTAPI     │
+                 │ API lifecycle   │
+                 └────────┬────────┘
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │    LANGGRAPH    │
+                 │  orchestration  │
+                 └────────┬────────┘
+                          │
+              requirement/discovery/
+               risk/policy/approval
+                          │
+                          ▼
+             dispatch canonical execution
+                          │
+                       HTTP
+                          │
+                          ▼
+              ┌─────────────────────┐
+              │   AGENT SERVICE     │
+              │     TypeScript      │
+              └──────────┬──────────┘
+                         │
+                         ▼
+                    AgentFlow
+                         │
+                    HTTP 402
+                         │
+                   policy approval
+                         │
+                         ▼
+                   AgentWallet
+                         │
+                      0.01 MON
+                         │
+                         ▼
+                    PROVIDER API
+                         │
+                         ▼
+                        DATA
+                         │
+                         ▼
+              DETERMINISTIC EVALUATOR
+                         │
+                    resultHash
+                         │
+                  trusted signature
+                         │
+                         ▼
+                    AgentEscrow
+                         │
+                      0.05 MON
+                         │
+                         ▼
+                       WORKER
+                         │
+                         ▼
+                     FASTAPI
+                         │
+                         ▼
+                    NEXT.JS UI
 ```
-                         AGENTPROOF
-                              │
-              ┌───────────────┴───────────────┐
-              │                                │
-          SPENDING                          EARNING
-              │                                │
-          AgentFlow                       ProofBounty
-              │                                │
-          AgentWallet                    AgentEscrow
-              │                                │
-       "Can the agent                   "Has the agent
-        spend this?"                     earned this?"
+
+The rule is:
+
+> **Python is the brain. TypeScript is the hands. Solidity is the money enforcer.**
+
+Python may decide that an execution should not start. Python must never directly authorize an on-chain payment or settlement.
+
+---
+
+## 4. On-Chain Financial Primitives
+
+AgentProof contains two independent financial primitives.
+
+```text
+                       AGENTPROOF
+                            │
+             ┌──────────────┴──────────────┐
+             │                             │
+          SPENDING                       EARNING
+             │                             │
+         AgentFlow                    ProofBounty
+             │                             │
+        AgentWallet                 AgentEscrow
+             │                             │
+      "Can the agent                 "Has the agent
+        spend this?"                  earned this?"
 ```
 
 ### AgentWallet
 
-**Purpose:** Control autonomous agent spending.
+Purpose: control autonomous agent spending.
 
-**Responsibilities:**
-- Hold MON.
-- Allow only the authorized agent to initiate payments.
-- Enforce an immutable maximum payment amount.
-- Pay service providers.
-- Emit payment events.
+Responsibilities:
+
+- hold MON
+- allow only the authorized agent to initiate payments
+- enforce immutable maximum payment amount
+- pay service providers
+- emit payment events
 
 ### AgentEscrow
 
-**Purpose:** Lock task rewards and release them only after evaluator authorization.
+Purpose: lock task rewards and release them only after evaluator authorization.
 
-**Responsibilities:**
-- Create tasks.
-- Lock MON rewards.
-- Store task state.
-- Verify evaluator signatures.
-- Prevent double settlement.
-- Pay the worker after successful verification.
+Responsibilities:
 
-> **Do NOT merge these contracts into a single `AgentEconomy.sol`.**
+- create tasks
+- lock MON rewards
+- store task state
+- verify evaluator signatures
+- prevent double settlement
+- pay the worker after successful verification
 
-The separation is intentional:
+Do NOT merge these contracts into a single `AgentEconomy.sol`.
 
-| Contract | Question it answers |
-|---|---|
-| `AgentWallet` | "Can the agent spend?" |
-| `AgentEscrow` | "Can the agent earn?" |
+The separation is intentional.
 
 ---
 
-## 3. Frozen MVP Scope
-
-Do not expand the architecture during the hackathon unless a concrete blocking issue requires it.
+## 5. Frozen MVP Scope
 
 The MVP contains:
 
@@ -106,7 +254,7 @@ The MVP contains:
 - ONE Monad Testnet deployment
 - MON as the only currency
 
-**Do NOT add:**
+Do NOT add during the Blitz MVP:
 
 - USDC
 - arbitrary ERC-20 support
@@ -119,114 +267,134 @@ The MVP contains:
 - multiple evaluator consensus
 - multiple workers
 - complex permission frameworks
+- production marketplace infrastructure
 - unnecessary contract abstractions
 
-These may be future extensions. They are **not** part of the Blitz MVP.
+These are future extensions, not MVP requirements.
 
 ---
 
-## 4. Currency
+## 6. Currency and Canonical Demo Economics
 
 Use MON everywhere in the MVP.
 
-Canonical demo economics:
-
 | Item | Amount |
-|---|---|
+|---|---:|
 | Task reward | 0.05 MON |
 | Service invoice | 0.01 MON |
 | Task spending cap | 0.02 MON |
 | Worker payout | 0.05 MON |
+| AgentWallet max payment | 0.02 MON |
 
-Do not introduce USDC or another ERC-20 token during the MVP.
+The AgentWallet maximum payment and AgentFlow task spending limit are different concepts:
+
+- **AgentWallet**: maximum amount for one payment
+- **AgentFlow**: maximum cumulative spend for the current task
+
+The canonical AgentFlow check is:
+
+```text
+spent + invoice <= spendingLimit
+```
+
+Do not replace it with only:
+
+```text
+invoice <= spendingLimit
+```
 
 ---
 
-## 5. Canonical Demo
+## 7. Canonical Demo Task
 
-The canonical task is:
+Use:
 
 > Research three competitors and produce a pricing comparison.
 
-**Execution:**
+Canonical execution:
 
+```text
 1. User creates task.
-2. User locks 0.05 MON in `AgentEscrow`.
-3. User specifies a 0.02 MON spending limit.
-4. Worker agent starts execution.
-5. Worker queries Service Marketplace to discover provider endpoint.
-6. Worker requests data from discovered provider.
-7. Provider returns HTTP 402.
-8. Provider supplies a 0.01 MON invoice.
-9. AgentFlow checks the spending policy.
-10. Policy approves the payment.
-11. `AgentWallet` pays 0.01 MON.
-12. Provider verifies payment.
-13. Provider returns data.
-14. Worker generates `TaskResult`.
-15. Evaluator performs deterministic checks.
-16. Evaluator passes the result.
-17. Evaluator signs the result digest.
-18. Worker submits the proof to `AgentEscrow`.
-19. `AgentEscrow` verifies the signature.
-20. `AgentEscrow` releases 0.05 MON.
-21. Worker receives the reward.
+2. 0.05 MON is locked in AgentEscrow.
+3. Task spending limit is 0.02 MON.
+4. Worker starts.
+5. Worker discovers the provider.
+6. Provider returns HTTP 402.
+7. Provider supplies 0.01 MON invoice.
+8. AgentFlow checks cumulative spending policy.
+9. Payment is approved.
+10. AgentWallet pays 0.01 MON.
+11. Provider verifies PaymentSettled.
+12. Provider returns data.
+13. Worker generates TaskResult.
+14. Deterministic evaluator checks result.
+15. Evaluator signs result digest.
+16. Worker submits proof.
+17. AgentEscrow verifies signature.
+18. AgentEscrow releases 0.05 MON.
+19. Worker receives reward.
+```
 
 ---
 
-## 6. Failure Demonstrations
-
-Two failure cases are mandatory for the final demo.
+## 8. Mandatory Failure Demonstrations
 
 ### Failure 1: Spending Policy
 
-Example:
-
-- Task spending limit: 0.02 MON
-- Provider invoice: 0.03 MON
-
-Expected behavior:
-
+```text
+Task spending limit: 0.02 MON
+Provider invoice:     0.03 MON
 ```
+
+Expected:
+
+```text
 Invoice > Spending Limit
         ↓
-AgentFlow rejects payment
+AgentFlow rejects
         ↓
-AgentWallet is never called
+AgentWallet never called
         ↓
 0 MON spent
 ```
 
 ### Failure 2: Invalid Proof
 
-Example:
+Evaluator signs:
 
-- Evaluator signs: `resultHash A`
-- Worker submits: `resultHash B`
-
-Expected behavior:
-
+```text
+resultHash A
 ```
-AgentEscrow recomputes digest
+
+Worker submits:
+
+```text
+resultHash B
+```
+
+Expected:
+
+```text
+AgentEscrow reconstructs digest
         ↓
-Signature does not match
+Signature mismatch
         ↓
 Transaction reverts
         ↓
 0 MON paid
         ↓
-Escrow remains locked
+0.05 MON remains locked
 ```
 
 ---
 
-## 7. AgentEscrow Cryptographic Specification
+## 9. AgentEscrow Cryptographic Specification
 
-This specification is **FROZEN**.
+This specification is FROZEN.
 
 The evaluator and contract must use exactly the same encoding.
 
-**Raw digest**
+### Raw digest
 
 ```solidity
 raw = keccak256(
@@ -240,7 +408,7 @@ raw = keccak256(
 );
 ```
 
-**Ethereum signed-message digest**
+### Signed-message digest
 
 ```solidity
 digest = keccak256(
@@ -268,16 +436,18 @@ ecrecover(digest, v, r, s)
 The signature is bound to:
 
 - chain ID
-- `AgentEscrow` contract address
+- AgentEscrow contract address
 - task ID
 - worker address
 - result hash
 
+Do not change this scheme during the hackathon.
+
 ---
 
-## 8. Critical Worker Rule
+## 10. Critical Worker Rule
 
-**DO NOT** add a separate worker parameter to `settleTask`.
+Do NOT add a separate worker parameter to `settleTask`.
 
 The worker is:
 
@@ -285,9 +455,11 @@ The worker is:
 msg.sender
 ```
 
-The signed digest already contains `msg.sender`. Therefore a signature created for Worker A cannot be replayed by Worker B.
+The signed digest already contains `msg.sender`.
 
-**Do NOT add:**
+Therefore a signature created for Worker A cannot be replayed by Worker B.
+
+Do not add:
 
 ```solidity
 address worker
@@ -295,7 +467,7 @@ address worker
 
 to `settleTask`.
 
-**Do NOT add:**
+Do not add:
 
 ```solidity
 require(msg.sender == worker)
@@ -305,112 +477,9 @@ The worker identity is already cryptographically bound to the signature.
 
 ---
 
-## 9. AgentEscrow Interface
+## 11. Result Schema
 
-Expected interface:
-
-```solidity
-function createTask(bytes32 taskId) external payable;
-
-function settleTask(
-    bytes32 taskId,
-    bytes32 resultHash,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-) external;
-```
-
-Task structure:
-
-```solidity
-struct Task {
-    address creator;
-    uint256 reward;
-    bool settled;
-}
-```
-
-Storage:
-
-```solidity
-mapping(bytes32 => Task) public tasks;
-```
-
-Verifier:
-
-```solidity
-address public immutable trustedVerifier;
-```
-
----
-
-## 10. AgentEscrow Invariants
-
-The contract must guarantee:
-
-- A task cannot be created twice.
-- A task must have a non-zero reward.
-- A nonexistent task cannot be settled.
-- A settled task cannot be settled again.
-- An invalid signature cannot release funds.
-- A signature for another task cannot release funds.
-- A signature for another result cannot release funds.
-- A signature for another worker cannot release funds.
-- A signature from another evaluator cannot release funds.
-- The worker receives the task reward.
-- Settlement state is updated before the external transfer.
-- Failed transfers revert the transaction.
-- The contract never inspects AI output.
-- The contract never makes semantic judgments about task correctness.
-
----
-
-## 11. Trust Model
-
-AgentProof is **NOT** a fully trustless verification system.
-
-The MVP uses one trusted evaluator key.
-
-The architecture is:
-
-```
-Worker
-  ↓
-Result
-  ↓
-Trusted Evaluator
-  ↓
-Signed Authorization
-  ↓
-AgentEscrow
-```
-
-The evaluator determines whether the result satisfies the task. The blockchain verifies that the configured evaluator authorized the exact:
-
-- chain
-- contract
-- task
-- worker
-- resultHash
-
-**Do NOT describe AgentProof as:**
-
-- trustless AI verification
-- decentralized verification
-- on-chain AI judgment
-- semantic correctness proof
-- zero-trust AI verification
-
-**Preferred wording:**
-
-> The evaluator performs deterministic checks and signs a result digest. AgentEscrow verifies that signed authorization before releasing escrow.
-
----
-
-## 12. Result Schema
-
-The worker result must use a deterministic schema.
+Use a deterministic schema:
 
 ```typescript
 export type TaskResult = {
@@ -422,7 +491,7 @@ export type TaskResult = {
 };
 ```
 
-The result must **NOT** be hashed using arbitrary:
+Do NOT hash arbitrary:
 
 ```typescript
 JSON.stringify(result)
@@ -445,174 +514,265 @@ const resultHash = keccak256(serializedResult);
 
 ---
 
-## 13. Evaluator
+## 12. Evaluator Rules
 
-The evaluator must be deterministic.
+The settlement evaluator must remain deterministic.
 
-**Minimum checks:**
+Minimum checks:
 
 - `records` is an array
 - `records.length === 10`
 - record IDs are unique
 
-For the demo task, additional deterministic checks may include:
+For the demo, additional deterministic checks may include:
 
 - required competitors are present
 - pricing fields exist
 - required values are populated
 - result structure is valid
 
-**Do NOT** introduce an LLM into the settlement authorization path.
+Do NOT introduce an LLM into settlement authorization.
 
-An LLM can assist the worker in producing the result, but settlement must depend on deterministic evaluator checks.
+An LLM may assist the worker in producing a result.
+
+The Python semantic/LLM verifier may analyze the output as advisory metadata.
+
+Settlement authorization remains:
+
+```text
+TaskResult
+  ↓
+deterministic checks
+  ↓
+resultHash
+  ↓
+trusted evaluator signature
+  ↓
+AgentEscrow
+```
 
 ---
 
-## 14. Chain ID
+## 13. Trust Model
 
-Never hardcode the chain ID.
+AgentProof is NOT a fully trustless verification system.
 
-The worker must retrieve it from the connected RPC:
+The MVP uses one trusted evaluator key.
 
-```typescript
-const chainId = await client.getChainId();
+```text
+Worker
+  ↓
+Result
+  ↓
+Trusted Evaluator
+  ↓
+Signed Authorization
+  ↓
+AgentEscrow
 ```
 
-The worker passes:
+The evaluator determines whether the result satisfies the task.
 
-- `chainId`
-- `contractAddress`
-- `worker`
-- `result`
+The blockchain verifies that the configured evaluator authorized the exact:
 
-to the evaluator.
+- chain
+- contract
+- task
+- worker
+- resultHash
 
-The evaluator must not independently fetch or hardcode the chain ID.
+Do NOT describe AgentProof as:
+
+- trustless AI verification
+- fully decentralized verification
+- on-chain AI evaluation
+- cryptographic proof that the AI answer is objectively correct
+- zero-trust AI verification
+
+Preferred wording:
+
+> The evaluator performs deterministic checks and signs a result digest. AgentEscrow verifies that signed authorization before releasing escrow.
 
 ---
 
-## 15. Signature Format
+## 14. Python Orchestration Layer
 
-Use viem's personal-sign flow.
+The Python layer is responsible for:
 
-**Do NOT** switch to EIP-712 during the MVP.
+- request intake
+- task interpretation
+- discovery
+- ranking
+- risk
+- pre-flight policy
+- approval flow
+- orchestration
+- audit logging
+- status delivery
+- optional semantic verification metadata
 
-Signing:
+Python is NOT responsible for:
 
-```typescript
-const signature = await verifier.signMessage({
-  message: { raw }
-});
+- AgentWallet signing
+- payment settlement
+- resultHash signing
+- AgentEscrow settlement
+- trusted verifier signing
+
+The intended boundary is:
+
+```text
+FastAPI
+  ↓
+LangGraph
+  ↓
+dispatch canonical execution
+  ↓
+HTTP
+  ↓
+agents/service.ts
 ```
 
-Signature layout:
-
-| Bytes | Field |
-|---|---|
-| 0..31 | `r` |
-| 32..63 | `s` |
-| 64 | `v` |
-
-Pass `v`, `r`, `s` to `settleTask`.
+Do not duplicate the economic engine in Python.
 
 ---
 
-## 16. AgentWallet
+## 15. Python Payment Adapter Rules
 
-`AgentWallet` must remain minimal.
+The existing `Web3MonadAdapter` may remain as a compatibility/test implementation, but it must not become the live economic executor while the TypeScript canonical service exists.
 
-Expected interface:
+The live user path must not:
 
-```solidity
-function deposit() external payable;
-
-function payService(
-    address payable provider,
-    uint256 amount
-) external;
+```text
+Python
+  ↓
+Web3MonadAdapter
+  ↓
+AgentWallet
 ```
 
-Expected behavior:
+The live user path must be:
 
-```
-Agent
+```text
+Python
   ↓
-payService(provider, amount)
+HTTP
   ↓
-Authorized agent?
+TypeScript Agent Service
   ↓
-Amount > 0?
+AgentFlow
   ↓
-Amount <= immutable maxPayment?
-  ↓
-Sufficient wallet balance?
-  ↓
-Transfer MON
-  ↓
-PaymentSettled event
+AgentWallet
 ```
 
-`AgentWallet` should contain:
+`MockPaymentAdapter` must be explicitly opt-in.
 
-- authorized agent
-- immutable maximum payment amount
-- MON balance
-- agent-only payment access
-- `PaymentSettled` event
+Recommended behavior:
 
-Do not add unnecessary abstractions.
+```text
+USE_MOCK_PAYMENTS=false
+```
+
+for live/dev execution.
+
+Mock mode may be enabled for automated tests.
+
+Mock responses must be clearly marked:
+
+```json
+{
+  "is_mock": true
+}
+```
+
+A fabricated hash must never be displayed as a real explorer transaction.
 
 ---
 
-## 17. Spending Policy
+## 16. Agent Service
 
-`AgentWallet`'s payment cap and `AgentFlow`'s task spending limit are different concepts.
+The TypeScript agent service is the HTTP boundary around the existing canonical worker.
 
-| Component | Concept |
-|---|---|
-| `AgentWallet` | Maximum amount for one payment |
-| `AgentFlow` | Maximum amount the current task may spend |
+Preferred file:
+
+```text
+agents/service.ts
+```
+
+Required:
+
+```text
+GET  /health
+POST /run
+GET  /run/:id
+```
+
+The service must:
+
+- invoke existing worker code
+- preserve AgentFlow behavior
+- preserve evaluator behavior
+- preserve AgentEscrow behavior
+- expose execution status
+- return real transaction hashes
+- wait for receipts before reporting success
+- avoid duplicate signing logic
+- avoid storing or exposing private keys through HTTP
+
+The service may use an in-memory execution map for the MVP.
+
+Do not add a production database solely for this integration.
+
+---
+
+## 17. Marketplace
+
+The MVP marketplace is intentionally simple.
+
+Preferred:
+
+```text
+agents/marketplace/registry.ts
+```
+
+The registry maps service types to:
+
+- service name
+- endpoint
+- expected cost
 
 Example:
 
-- `AgentWallet` maximum payment: 0.02 MON
-- Task spending limit: 0.02 MON
-- Provider invoice: 0.01 MON
-
-`AgentFlow` should track cumulative spending:
-
-```
-spent + invoice <= spendingLimit
+```text
+Competitor Pricing API
+  endpoint: provider URL
+  cost: 0.01 MON
 ```
 
-not only:
+Do not build:
 
-```
-invoice <= spendingLimit
-```
+- provider auctions
+- dynamic pricing engines
+- provider reputation
+- marketplace governance
+- database-heavy service discovery
+
+The marketplace exists to demonstrate that an autonomous agent can discover a paid service and pay for it within policy.
 
 ---
 
-## 18. Provider & Service Marketplace
+## 18. Provider
 
-The provider is a simple HTTP service demonstrating machine-to-machine payments, and it registers itself in the **Service Marketplace**.
-
-### Service Marketplace Implementation
-The MVP marketplace should be implemented as a simple registry (e.g., an in-memory directory or static list in `agents/marketplace/registry.ts`) that maps service types to provider endpoints and expected pricing.
-- **Service Name:** e.g., "Weather Data API" or "Competitor Pricing API"
-- **Endpoint:** URL to the provider
-- **Cost:** Expected cost (e.g., `0.01 MON`)
-
-Before calling the provider, the Worker agent queries this registry to discover the correct endpoint for the task.
+The provider is a simple paid HTTP service.
 
 Canonical flow:
 
-```
+```text
 Worker
   ↓
-Query Service Marketplace for required service
+Marketplace lookup
   ↓
-GET /pricing on discovered Provider endpoint
+GET /pricing
   ↓
 HTTP 402
   ↓
@@ -622,43 +782,125 @@ AgentFlow policy check
   ↓
 AgentWallet payment
   ↓
-Retry request
+retry with X-Payment-Tx
   ↓
-Provider validates payment
+provider validates PaymentSettled
   ↓
 HTTP 200
   ↓
-Data
+data
 ```
 
-The provider and marketplace registry should remain intentionally simple. Do not build a production-grade payment protocol or complex DB for the registry.
+Provider payment verification should check:
 
-The purpose is to demonstrate:
-
-> An autonomous agent can discover a paid resource via the marketplace and pay for it within policy.
-
----
-
-## 19. Provider Payment Verification
-
-The preferred MVP mechanism is to use the `PaymentSettled` event emitted by `AgentWallet`.
-
-The provider may verify:
-
-- `AgentWallet` address
+- AgentWallet address
 - provider address
 - payment amount
 - successful transaction
+- PaymentSettled event
 
-The worker can supply the payment transaction hash when retrying the request.
+Avoid complex tracing for the MVP.
 
-Avoid requiring complex transaction tracing for the MVP.
+The current provider replay behavior is acceptable for a hackathon demo, but do not market it as a production payment protocol.
 
 ---
 
-## 20. Integration Types
+## 19. Frontend
 
-Use these boundaries:
+The frontend must make the economic state visible.
+
+Minimum display:
+
+- Task
+- Reward
+- Spending Limit
+- Amount Spent
+- Agent Status
+- Provider Invoice
+- Policy Decision
+- Provider Payment Transaction
+- Evaluation Status
+- Result Hash
+- Settlement Transaction
+- Worker Payout
+
+Successful flow:
+
+```text
+TASK CREATED
+    ↓
+0.05 MON LOCKED
+    ↓
+AGENT WORKING
+    ↓
+HTTP 402
+    ↓
+POLICY APPROVED
+    ↓
+0.01 MON PAID
+    ↓
+DATA RECEIVED
+    ↓
+RESULT VERIFIED
+    ↓
+PROOF SIGNED
+    ↓
+0.05 MON SETTLED
+```
+
+Failure flow:
+
+```text
+INVALID PROOF
+    ↓
+SETTLEMENT REVERTED
+    ↓
+0 MON PAID
+    ↓
+0.05 MON REMAINS LOCKED
+```
+
+Every important blockchain transaction should expose an explorer link.
+
+The frontend should use:
+
+```text
+NEXT_PUBLIC_API_BASE_URL
+```
+
+for backend access.
+
+The old `DEMO_*` values may remain as fallback state, but live API state is authoritative when available.
+
+---
+
+## 20. Frontend Request Lifecycle
+
+The intended flow is:
+
+```text
+Next.js
+  ↓
+POST /v1/agent-requests
+  ↓
+FastAPI returns request_id
+  ↓
+poll GET /v1/agent-requests/{request_id}
+  ↓
+render live lifecycle
+```
+
+Do not hardcode a single past transaction as the primary dashboard state.
+
+Do not put any private key in `NEXT_PUBLIC_*`.
+
+---
+
+## 21. Integration Types
+
+Use a stable correlation model.
+
+Conceptual types:
 
 ```typescript
 type Task = {
@@ -683,122 +925,238 @@ type Evaluation = {
 };
 ```
 
-The same `taskId` correlates `AgentFlow` and `ProofBounty` off-chain.
+The same `taskId` correlates AgentFlow and ProofBounty off-chain.
 
-The same agent identity is used as:
-
-```
-AgentFlow agent = Worker
-```
-
-Do not merge the contracts.
+The same agent identity is used as the worker identity for the canonical proof path.
 
 ---
 
-## 21. Worker
+## 22. Worker Rules
 
 Worker responsibilities:
 
 1. Start task.
 2. Request provider resource.
-3. Process HTTP 402 invoice.
-4. Ask `AgentFlow` for spending authorization.
-5. Pay provider through `AgentWallet`.
+3. Process HTTP 402.
+4. Ask AgentFlow for spending authorization.
+5. Pay provider through AgentWallet.
 6. Retry provider request.
-7. Generate `TaskResult`.
-8. Send result to evaluator.
+7. Generate TaskResult.
+8. Run deterministic evaluation.
 9. Receive evaluator signature.
 10. Submit settlement transaction.
 11. Wait for transaction receipt.
 12. Only then report settlement success.
 
-> Never treat a transaction as settled merely because a transaction hash was returned. Wait for the receipt.
+Never treat a transaction as settled merely because a transaction hash was returned.
 
 ---
 
-## 22. Frontend
+## 23. Chain Configuration
 
-The frontend must make the economic state visible.
+Monad Testnet:
 
-**Display at minimum:**
+```text
+Chain ID:
+10143
 
-- Task
-- Reward
-- Spending Limit
-- Amount Spent
-- Agent Status
-- Provider Invoice
-- Policy Decision
-- Provider Payment Transaction
-- Evaluation Status
-- Result Hash
-- Settlement Transaction
-- Worker Payout
+RPC:
+https://testnet-rpc.monad.xyz
 
-**Successful flow:**
+Explorer:
+https://testnet.monadscan.com
 
-```
-TASK CREATED
-     ↓
-0.05 MON LOCKED
-     ↓
-AGENT WORKING
-     ↓
-HTTP 402
-     ↓
-POLICY APPROVED
-     ↓
-0.01 MON PAID
-     ↓
-DATA RECEIVED
-     ↓
-RESULT VERIFIED
-     ↓
-PROOF SIGNED
-     ↓
-0.05 MON SETTLED
+MonadVision:
+https://testnet.monadvision.com
 ```
 
-**Failure flow:**
+Deployed contracts:
 
-```
-INVALID PROOF
-     ↓
-SETTLEMENT REVERTED
-     ↓
-0 MON PAID
-     ↓
-0.05 MON REMAINS LOCKED
+```text
+AgentWallet:
+0x7263058B4040ae7410340f63d292152DE8d867FA
+
+AgentEscrow:
+0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1
 ```
 
-Every important blockchain transaction should expose an explorer link.
+Do not invent new addresses.
+
+Do not store private keys in this file.
+
+Never hardcode the evaluator chain ID inside the evaluator.
+
+The worker should read the actual chain ID from RPC:
+
+```typescript
+const chainId = await client.getChainId();
+```
 
 ---
 
-## 23. Contract Security
+## 24. Secret Management
 
-Use:
+Economic signer secrets must remain exclusively inside the TypeScript agent process.
 
-```solidity
-(bool success, ) = payable(recipient).call{value: amount}("");
-if (!success) revert TransferFailed();
-```
+Do not put:
 
-For `AgentEscrow`:
+- `AGENT_KEY`
+- `WORKER_KEY`
+- `VERIFIER_KEY`
 
-1. Load task.
-2. Check task state.
-3. Reconstruct digest.
-4. Verify signature.
-5. Mark task settled.
-6. Transfer payout.
-7. Revert if transfer fails.
+into:
 
-The MVP does not require a full low-s ECDSA malleability implementation. Do not expand cryptographic scope without a concrete requirement.
+- frontend
+- `NEXT_PUBLIC_*`
+- FastAPI request payloads
+- browser code
+- README
+- git
+- public configuration
+
+The Python layer should orchestrate through HTTP and should not need economic private keys.
+
+Never paste private keys into source files or chat.
 
 ---
 
-## 24. Testing
+## 25. Security Requirements
+
+### CORS
+
+Do not use:
+
+```python
+allow_origins=["*"]
+allow_credentials=True
+```
+
+Use explicit configured origins.
+
+### JWT
+
+Do not use the repository's default production JWT secret.
+
+Require a non-default secret outside development.
+
+### SSRF
+
+Keep hardened SSRF protection.
+
+Allow localhost only under an explicit local-demo/test flag.
+
+Do not permit private network targets in public deployment.
+
+### Prompt Injection
+
+Keep external prompt injection quarantined from privileged system instructions and economic authority.
+
+### Payment
+
+Mock payments must be explicit.
+
+Real mode must produce real blockchain receipts.
+
+### Signing
+
+Only the TypeScript agent service may hold/use the settlement signer.
+
+Never introduce a second active signer using the same wallet key.
+
+---
+
+## 26. Repository Structure
+
+Target structure:
+
+```text
+agentproof/
+├── contracts/
+│   ├── src/
+│   │   ├── AgentWallet.sol
+│   │   └── AgentEscrow.sol
+│   └── test/
+│       ├── AgentWallet.t.sol
+│       └── AgentEscrow.t.sol
+│
+├── agents/
+│   ├── service.ts
+│   ├── evaluator.ts
+│   ├── worker.ts
+│   ├── agentFlow.ts
+│   ├── marketplace/
+│   │   └── registry.ts
+│   └── provider/
+│       └── server.ts
+│
+├── app/
+│   ├── main.py
+│   ├── api/
+│   ├── graph/
+│   ├── agents/
+│   ├── services/
+│   │   └── agent_execution_client.py
+│   ├── blockchain/
+│   └── config/
+│
+├── frontend/
+│   └── ...
+│
+├── README.md
+└── CLAUDE.md
+```
+
+If the repository already has a working structure, do not restructure it unnecessarily.
+
+---
+
+## 27. Integration Order
+
+The current task is integration, not rebuilding the MVP.
+
+Use this order:
+
+### Phase 6B.1
+Agent service wrapper
+
+### Phase 6B.2
+Marketplace registry
+
+### Phase 6B.3
+Python execution client
+
+### Phase 6B.4
+LangGraph dispatch integration
+
+### Phase 6B.5
+Disable live mock payment path
+
+### Phase 6B.6
+Policy limit reconciliation
+
+### Phase 6B.7
+Frontend API integration
+
+### Phase 6B.8
+Security/config hardening
+
+### Phase 6B.9
+README runbook
+
+### Phase 6B.10
+Full local E2E
+
+### Phase 6B.11
+Real Monad Testnet E2E
+
+### Phase 6B.12
+Public deployment
+
+Do not redesign the architecture between these steps unless a concrete blocker is discovered.
+
+---
+
+## 28. Testing Requirements
 
 ### AgentWallet
 
@@ -810,14 +1168,14 @@ Required tests:
 - payment above cap reverts
 - payment above balance reverts
 - failed provider transfer reverts
-- `PaymentSettled` event emitted
+- PaymentSettled event emitted
 
 ### AgentEscrow
 
 Required tests:
 
 - valid proof pays worker
-- tampered `resultHash` reverts
+- tampered resultHash reverts
 - wrong worker signature reverts
 - wrong task signature reverts
 - wrong evaluator signature reverts
@@ -825,274 +1183,210 @@ Required tests:
 - zero-value task reverts
 - malformed signature reverts
 
----
+### Integration
 
-## 25. Repository Structure
+Also prove:
 
-Target structure:
-
-```
-agentproof/
-│
-├── contracts/
-│   ├── src/
-│   │   ├── AgentWallet.sol
-│   │   └── AgentEscrow.sol
-│   │
-│   └── test/
-│       ├── AgentWallet.t.sol
-│       └── AgentEscrow.t.sol
-│
-├── agents/
-│   ├── evaluator.ts
-│   ├── worker.ts
-│   ├── agentFlow.ts
-│   ├── marketplace/
-│   │   └── registry.ts
-│   └── provider/
-│       └── server.ts
-│
-├── frontend/
-│   └── ...
-│
-├── README.md
-└── CLAUDE.md
-```
-
-If the existing repository already has a working structure, do not restructure it unnecessarily.
+- `/health` works
+- agent service accepts a run
+- status is queryable
+- FastAPI dispatches to the agent service
+- frontend can submit and poll
+- mock mode is explicit
+- no fake live transaction hashes are emitted
+- Python cannot settle
+- real Testnet run returns real transaction receipts
 
 ---
 
-## 26. Build Order
+## 29. Full E2E Acceptance Test
 
-Follow this order.
+Do not call the system complete until the following is demonstrated on Monad Testnet:
 
-### Phase 1: AgentWallet
-
-Implement:
-- `AgentWallet.sol`
-- `AgentWallet.t.sol`
-
-### Phase 2: Provider & Marketplace
-
-Implement `provider/server.ts` with:
-- `GET /pricing`
-
-Implement `agents/marketplace/registry.ts` with:
-- Static directory of available services and endpoints
-
-### Phase 3: AgentFlow
-
-Implement `agentFlow.ts` with:
-
-```
-query marketplace
-→ find provider endpoint
-→ request provider
-→ receive 402
-→ parse invoice
-→ check spending policy
-→ pay through AgentWallet
-→ wait for receipt
-→ retry provider
-→ receive data
-```
-
-### Phase 4: Worker Integration
-
-Connect:
-
-```
-Provider data
-    ↓
-TaskResult
-    ↓
-Evaluator
-    ↓
-resultHash
-    ↓
-signature
-    ↓
-AgentEscrow
-    ↓
-settlement
-```
-
-### Phase 5: End-to-End Test
-
-Prove:
-
-```
+```text
 0.05 MON escrow
-        ↓
-0.01 MON service payment
-        ↓
+      ↓
+0.01 MON provider payment
+      ↓
 real provider response
-        ↓
+      ↓
 deterministic evaluation
-        ↓
-real 0.05 MON worker payout
+      ↓
+trusted signature
+      ↓
+real AgentEscrow settlement
+      ↓
+0.05 MON worker payout
 ```
 
-### Phase 6: Frontend
+The frontend must show the same execution through live status updates.
 
-Build the dashboard after the backend flow works.
+Record:
 
-### Phase 7: Deployment
+- request ID
+- task ID
+- escrow transaction
+- provider payment transaction
+- result hash
+- settlement transaction
+- final status
+- spend amount
+- payout amount
 
-Deploy to Monad Testnet.
-
-### Phase 8: Verification
-
-Verify both contracts on the explorer.
-
-### Phase 9: Submission Assets
-
-Prepare:
-- GitHub
-- README
-- Live URL
-- Contract addresses
-- Demo video
-- Social posts
-- Creative ad
+Verify the transaction hashes on Monad Testnet explorer.
 
 ---
 
-## 27. Monad Blitz Priorities
-
-The Monad Blitz rubric has three major areas:
-
-| Area | Points |
-|---|---|
-| Basic Points | 100 |
-| Advanced Points | 200 |
-| Bonus Points | 100 |
-
-The implementation should prioritize the controllable requirements.
-
-### Basic
-
-Must have:
-- Public GitHub
-- Proper README
-- Monad Testnet contracts
-- Publicly hosted project
-
-### Advanced: Working Product
-
-Must have:
-- All announced functions working
-- Live transaction during demo
-- Verified contracts
-- README allows another person to run it
-
-### Advanced: Build in Public
-
-Must prepare:
-- X/LinkedIn project post
-- 30+ second demo video
-- Creative product advertisement
-- 5K+ collective views target
-
-### Bonus
-
-Only after the MVP is stable:
-- Mainnet deployment
-- Custom domain
-- Pre-market-fit evidence
-- Revenue strategy
-- Innovation/originality presentation
-
-Do not sacrifice core functionality for bonus features.
-
----
-
-## 28. Demo Requirements
+## 30. Demo Sequence
 
 The live demo should show:
 
-1. Create task
-2. Lock 0.05 MON
-3. Show 0.02 MON spending limit
-4. Start worker
-5. Provider returns 402
-6. AgentFlow evaluates invoice
-7. AgentWallet pays 0.01 MON
-8. Provider releases data
-9. Worker generates result
-10. Evaluator verifies result
-11. Evaluator signs proof
-12. AgentEscrow settles
-13. Worker receives 0.05 MON
+1. Create task.
+2. Lock 0.05 MON.
+3. Show 0.02 MON task spending limit.
+4. Start worker.
+5. Provider returns 402.
+6. AgentFlow evaluates invoice.
+7. AgentWallet pays 0.01 MON.
+8. Provider releases data.
+9. Worker generates result.
+10. Deterministic evaluator verifies result.
+11. Evaluator signs proof.
+12. AgentEscrow settles.
+13. Worker receives 0.05 MON.
 
 Then:
 
-14. Modify resultHash
-15. Submit old signature
-16. Settlement reverts
-17. Escrow remains locked
+14. Tamper the resultHash.
+15. Submit old signature.
+16. Settlement reverts.
+17. Escrow remains locked.
 
 Then:
 
-18. Request service costing 0.03 MON
-19. Spending limit is 0.02 MON
-20. AgentFlow rejects the payment
+18. Request service costing 0.03 MON.
+19. Spending limit is 0.02 MON.
+20. AgentFlow rejects the payment.
 
 ---
 
-## 29. Messaging
+## 31. Claims That Are Allowed
 
-**Project name:** AgentProof
+Use:
 
-**Tagline:**
+- policy-controlled autonomous spending
+- evaluator-authorized task settlement
+- deterministic result verification
+- signed authorization bound to task, worker, contract, chain and result
+- automatic MON settlement after successful verification
 
-> Spend by policy. Work autonomously. Get paid by proof.
+Do NOT use:
 
-**One-line description:**
+- trustless AI verification
+- fully decentralized verification
+- on-chain AI evaluation
+- cryptographic proof that the AI answer is objectively correct
+
+Preferred description:
 
 > AgentProof lets autonomous AI agents spend MON within predefined policies, acquire resources, complete work, and automatically get paid when their result is verified.
 
-**Short pitch:**
+---
 
-> AI agents need money to operate, but unrestricted spending is dangerous and manual payment approval defeats autonomy. AgentProof solves both sides of the loop. AgentFlow controls what an agent can spend, while ProofBounty verifies completed work and releases payment automatically. The result is an agent that can buy services, perform work, prove the result, and get paid without manual approval.
+## 32. Monad Blitz Priorities
+
+Prioritize controllable scoring requirements before bonus work.
+
+### Basic
+
+- public GitHub
+- proper README
+- Monad Testnet contracts
+- publicly hosted project
+
+### Advanced
+
+- all announced functions working
+- live on-chain transaction during demo
+- verified contracts
+- another person can run it from README
+- public build-in-public post
+- 30+ second demo video
+- creative ad/video
+
+### Bonus
+
+Only after MVP stability:
+
+- mainnet deployment
+- custom domain
+- pre-market-fit evidence
+- revenue strategy
+- innovation/originality presentation
+
+Do not sacrifice the core economic loop for bonus features.
 
 ---
 
-## 30. Claims That Are Allowed
+## 33. Development Rules
 
-**Use:**
-- Policy-controlled autonomous spending.
-- Evaluator-authorized task settlement.
-- Deterministic result verification.
-- Signed authorization bound to task, worker, contract, chain and result.
-- Automatic MON settlement after successful verification.
+### Rule 1
+Do not modify Solidity for application-layer convenience.
 
-**Do NOT use:**
-- Trustless AI verification.
-- Fully decentralized verification.
-- On-chain AI evaluation.
-- Cryptographic proof that the AI answer is objectively correct.
+### Rule 2
+Do not duplicate economic logic across Python and TypeScript.
+
+### Rule 3
+One active economic signer process.
+
+### Rule 4
+Python can block an execution but cannot authorize payment.
+
+### Rule 5
+Only deterministic evaluator output can produce the settlement signature.
+
+### Rule 6
+Transaction success means receipt success, not merely tx hash creation.
+
+### Rule 7
+Never fake blockchain state in live mode.
+
+### Rule 8
+Keep the MVP small.
+
+### Rule 9
+Verify every Testnet claim before documenting it.
+
+### Rule 10
+README must be sufficient for a fresh developer to run the product.
 
 ---
 
-## 31. Final Development Rule
-
-The most important milestone is **NOT** the frontend.
+## 34. Final Development Milestone
 
 The most important milestone is:
 
 > A real autonomous agent spends 0.01 MON through AgentWallet, obtains a resource, completes the task, passes deterministic evaluation, and receives 0.05 MON through AgentEscrow on Monad Testnet.
 
-Build the smallest reliable system that demonstrates:
+The full product story is:
 
-```
+```text
+UNDERSTAND
+    ↓
+DISCOVER
+    ↓
+CONTROL SPENDING
+    ↓
 SPEND
-  ↓
+    ↓
 WORK
-  ↓
+    ↓
+VERIFY
+    ↓
 PROVE
-  ↓
+    ↓
+SETTLE
+    ↓
 EARN
 ```
 

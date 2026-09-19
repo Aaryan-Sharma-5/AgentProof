@@ -79,21 +79,35 @@ export class AgentFlow {
 
   /// GET url; if 402, run the policy check and pay through AgentWallet; then retry once with the payment tx hash attached.
   async requestWithPayment(
-    url: string
-  ): Promise<{ status: number; data?: unknown; blocked?: boolean; reason?: string }> {
+    url: string,
+    onEvent: (event: "invoice" | "approved" | "rejected" | "paid", detail?: Record<string, unknown>) => void = () => {}
+  ): Promise<{
+    status: number;
+    data?: unknown;
+    blocked?: boolean;
+    reason?: string;
+    paymentTx?: `0x${string}`;
+    invoice?: Invoice;
+  }> {
     const first = await fetch(url);
     if (first.status !== 402) {
       return { status: first.status, data: await first.json() };
     }
 
     const invoice = (await first.json()) as Invoice;
+    onEvent("invoice", { amount: invoice.amount, currency: invoice.currency, paymentAddress: invoice.paymentAddress });
+
     const result = await this.payInvoice(invoice);
 
     if (!result.paid) {
-      return { status: 402, blocked: true, reason: result.reason };
+      onEvent("rejected", { reason: result.reason, amount: invoice.amount });
+      return { status: 402, blocked: true, reason: result.reason, invoice };
     }
 
+    onEvent("approved", { amount: invoice.amount });
+    onEvent("paid", { paymentTx: result.hash, amount: invoice.amount });
+
     const second = await fetch(url, { headers: { "X-Payment-Tx": result.hash } });
-    return { status: second.status, data: await second.json() };
+    return { status: second.status, data: await second.json(), paymentTx: result.hash, invoice };
   }
 }

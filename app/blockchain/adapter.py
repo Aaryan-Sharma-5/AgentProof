@@ -39,8 +39,11 @@ class PaymentGateway(Protocol):
 
 class MockPaymentAdapter:
     """
-    Hermetic in-memory payment adapter for unit tests, offline development,
-    and fast graph execution.
+    Hermetic in-memory payment adapter. TEST-ONLY.
+
+    Never reachable from a live request path: node wiring selects this adapter only when
+    settings.use_mock_payments is explicitly true (USE_MOCK_PAYMENTS=true), which defaults to
+    false. Every result it produces carries is_mock=True and a "mock:" prefixed tx hash.
     """
 
     def __init__(self, should_fail: bool = False, balance_mon: float = 10.0):
@@ -64,7 +67,8 @@ class MockPaymentAdapter:
                 success=False,
                 status=PaymentStatus.FAILED,
                 error_code="PAYMENT_FAILED",
-                error_message="Simulated transaction failure in MockPaymentAdapter."
+                error_message="Simulated transaction failure in MockPaymentAdapter.",
+                is_mock=True
             )
             self.idempotency_cache[idempotency_key] = res
             return res
@@ -74,14 +78,17 @@ class MockPaymentAdapter:
                 success=False,
                 status=PaymentStatus.FAILED,
                 error_code="PAYMENT_FAILED",
-                error_message="Insufficient wallet balance in MockPaymentAdapter."
+                error_message="Insufficient wallet balance in MockPaymentAdapter.",
+                is_mock=True
             )
             self.idempotency_cache[idempotency_key] = res
             return res
 
         # Generate deterministic mock tx hash
+        # Prefixed with "mock:" so a simulated hash is structurally impossible to confuse with a
+        # real 0x-prefixed Monad transaction hash, and cannot be rendered as an explorer link.
         hash_digest = hashlib.sha256(f"{idempotency_key}:{provider_address}:{amount_mon}".encode()).hexdigest()
-        tx_hash = f"0x{hash_digest}"
+        tx_hash = f"mock:0x{hash_digest}"
         block_number = 1000000 + len(self.transactions)
 
         self.balance_mon -= amount_mon
@@ -96,7 +103,8 @@ class MockPaymentAdapter:
             success=True,
             status=PaymentStatus.CONFIRMED,
             tx_hash=tx_hash,
-            block_number=block_number
+            block_number=block_number,
+            is_mock=True
         )
         self.idempotency_cache[idempotency_key] = result
         return result
@@ -118,9 +126,14 @@ class MockPaymentAdapter:
 
 class Web3MonadAdapter:
     """
-    Production Web3 adapter communicating with the Monad network.
-    Calls AgentWallet.payService(provider, amount) using AGENT_KEY.
-    Integrates Teammate 3's frozen smart contracts.
+    Direct Web3 adapter for AgentWallet.payService.
+
+    RETAINED FOR REFERENCE / OFFLINE TOOLING ONLY - NOT part of the live request path.
+
+    The canonical TypeScript agent service (agents/service.ts) is the single process permitted to
+    hold and use AGENT_KEY. Activating this adapter alongside that service would put two
+    independent signers on the same key and race the account nonce. The LangGraph payment path
+    dispatches to the agent service over HTTP instead; see app/services/agent_execution_client.py.
     """
 
     # AgentWallet ABI from Teammate 3's contracts/src/AgentWallet.sol

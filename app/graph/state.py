@@ -33,6 +33,22 @@ class AgentFlowState(TypedDict, total=False):
     blockchain_tx_hash: Optional[str]
     payment_status: Optional[str]
 
+    # Canonical execution (agents/service.ts). Python records these; it never produces them.
+    canonical_run_id: Optional[str]
+    canonical_status: Optional[str]
+    canonical_stage: Optional[str]
+    task_id: Optional[str]
+    escrow_tx: Optional[str]
+    provider_tx: Optional[str]
+    settlement_tx: Optional[str]
+    result_hash: Optional[str]
+    spent_mon: Optional[str]
+    reward_mon: Optional[str]
+    spending_limit_mon: Optional[str]
+    settled: bool
+    is_mock: bool
+    execution_stages: List[Dict[str, Any]]
+
     api_execution_id: Optional[str]
     api_response: Optional[Dict[str, Any]]
 

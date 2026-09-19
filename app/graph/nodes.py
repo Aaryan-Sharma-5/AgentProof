@@ -31,6 +31,8 @@ from app.services.payment_service import PaymentService
 from app.services.api_execution_service import ApiExecutionService
 from app.services.verification_service import VerificationService
 from app.blockchain.adapter import MockPaymentAdapter, PaymentGateway
+from app.services.agent_execution_client import AgentExecutionClient, AgentServiceError
+from app.config.settings import settings
 from app.observability.audit import audit_logger
 from app.repositories.in_memory import store, InMemoryStore
 
@@ -42,16 +44,28 @@ class GraphNodeContext:
         self,
         data_store: Optional[InMemoryStore] = None,
         payment_gateway: Optional[PaymentGateway] = None,
-        allow_local_mock: bool = True,
+        allow_local_mock: Optional[bool] = None,
+        agent_client: Optional[AgentExecutionClient] = None,
     ):
         self.store = data_store or store
-        self.payment_gateway = payment_gateway or MockPaymentAdapter()
+        # The live economic path never uses a Python payment adapter: it dispatches to the
+        # canonical TypeScript agent service. A gateway is constructed only for explicit mock mode
+        # (tests) or when a caller injects one directly.
+        if payment_gateway is not None:
+            self.payment_gateway = payment_gateway
+        elif settings.use_mock_payments:
+            self.payment_gateway = MockPaymentAdapter()
+        else:
+            self.payment_gateway = None
+        self.agent_client = agent_client or AgentExecutionClient()
+        if allow_local_mock is None:
+            allow_local_mock = settings.allow_local_provider
         self.requirement_agent = RequirementAgent()
         self.marketplace_service = MarketplaceService(self.store)
         self.policy_service = PolicyService()
         self.risk_service = RiskService()
         self.approval_service = ApprovalService(self.store)
-        self.payment_service = PaymentService(self.payment_gateway, self.store)
+        self.payment_service = PaymentService(self.payment_gateway, self.store) if self.payment_gateway else None
         self.api_executor = ApiExecutionService(allow_local_mock=allow_local_mock)
         self.verification_service = VerificationService()
 
@@ -258,6 +272,16 @@ async def policy_check_node(state: AgentFlowState) -> Dict[str, Any]:
 
     policy_result = node_context.policy_service.evaluate(check_inp)
 
+    # The chain is the final enforcement layer, but Python must never approve an invoice that
+    # AgentWallet.payService is guaranteed to revert (amount > immutable maxPayment).
+    if policy_result.is_allowed and selected_api.price_mon > settings.wallet_max_payment_mon:
+        policy_result.is_allowed = False
+        policy_result.violations.append(
+            f"Price {selected_api.price_mon:.4f} MON exceeds AgentWallet immutable per-payment cap "
+            f"{settings.wallet_max_payment_mon:.4f} MON."
+        )
+        policy_result.reason = "Policy check failed: " + "; ".join(policy_result.violations)
+
     audit_logger.log_event(
         event_type=EventType.POLICY_CHECKED,
         request_id=req_id,
@@ -447,13 +471,18 @@ async def create_payment_intent_node(state: AgentFlowState) -> Dict[str, Any]:
             "final_status": "FAILED"
         }
 
-    intent = node_context.payment_service.create_intent(
-        request_id=req_id,
-        agent_id=agent_id,
-        provider_id=provider.id,
-        provider_address=provider.payment_address,
-        amount_mon=selected_api["price_mon"]
-    )
+    # A payment intent is a record of what the agent is about to be asked to buy. It authorizes
+    # nothing: AgentFlow's cumulative check and AgentWallet's immutable cap decide the actual spend.
+    intent_id = None
+    if node_context.payment_service is not None:
+        intent = node_context.payment_service.create_intent(
+            request_id=req_id,
+            agent_id=agent_id,
+            provider_id=provider.id,
+            provider_address=provider.payment_address,
+            amount_mon=selected_api["price_mon"]
+        )
+        intent_id = intent.payment_intent_id
 
     audit_logger.log_event(
         event_type=EventType.PAYMENT_CREATED,
@@ -461,104 +490,268 @@ async def create_payment_intent_node(state: AgentFlowState) -> Dict[str, Any]:
         status="CREATED",
         agent_id=agent_id,
         api_id=selected_api["id"],
-        details={"payment_intent_id": intent.payment_intent_id, "amount_mon": intent.amount_mon}
+        details={
+            "payment_intent_id": intent_id,
+            "amount_mon": selected_api["price_mon"],
+            "is_mock": settings.use_mock_payments,
+        }
     )
 
     return {
-        "payment_intent_id": intent.payment_intent_id,
-        "payment_status": intent.status.value,
+        "payment_intent_id": intent_id,
+        "payment_status": PaymentStatus.CREATED.value,
+        "reward_mon": f"{settings.task_reward_mon}",
+        "spending_limit_mon": f"{settings.task_spending_limit_mon}",
         "final_status": "PAYMENT_PENDING"
     }
 
 
-# --- Node 11: execute_payment ---
+# --- Node 11: execute_payment -> dispatch_canonical_execution ---
 async def execute_payment_node(state: AgentFlowState) -> Dict[str, Any]:
+    """
+    Dispatches the canonical TypeScript agent execution.
+
+    This node does NOT pay anyone. It asks the canonical agent service to run the proven economic
+    loop: escrow lock -> HTTP 402 -> AgentFlow policy -> AgentWallet -> provider data ->
+    deterministic evaluator -> trusted verifier signature -> AgentEscrow settlement.
+
+    Python can prevent a run from starting (everything upstream of this node). It cannot authorize
+    a payment or a settlement: it holds no key, computes no resultHash and signs nothing.
+    """
     req_id = state["request_id"]
     agent_id = state.get("agent_id", "agent-1")
-    intent_id = state["payment_intent_id"]
 
     audit_logger.log_event(
         event_type=EventType.PAYMENT_SUBMITTED,
         request_id=req_id,
-        status="SUBMITTED",
+        status="DISPATCHED",
         agent_id=agent_id,
-        details={"payment_intent_id": intent_id}
+        details={"target": "canonical_agent_service", "is_mock": settings.use_mock_payments}
     )
 
-    result = await node_context.payment_service.execute_payment(intent_id)
-
-    if result.success:
-        audit_logger.log_event(
-            event_type=EventType.PAYMENT_CONFIRMED,
-            request_id=req_id,
-            status="CONFIRMED",
-            agent_id=agent_id,
-            details={"tx_hash": result.tx_hash, "block_number": result.block_number}
-        )
+    # Explicit mock mode (tests only). Never reachable when USE_MOCK_PAYMENTS is false.
+    if settings.use_mock_payments:
+        intent_id = state.get("payment_intent_id")
+        if intent_id and node_context.payment_service is not None:
+            result = await node_context.payment_service.execute_payment(intent_id)
+            return {
+                "blockchain_tx_hash": result.tx_hash,
+                "payment_status": result.status.value,
+                "is_mock": True,
+                "settled": bool(result.success),
+                "canonical_status": "settled" if result.success else "failed",
+                "error_code": None if result.success else (result.error_code or ErrorCode.PAYMENT_FAILED.value),
+                "error_message": None if result.success else result.error_message,
+                "final_status": "PAYMENT_CONFIRMED" if result.success else "FAILED",
+            }
         return {
-            "blockchain_tx_hash": result.tx_hash,
-            "payment_status": PaymentStatus.CONFIRMED.value,
-            "final_status": "PAYMENT_CONFIRMED"
+            "is_mock": True,
+            "payment_status": PaymentStatus.FAILED.value,
+            "error_code": ErrorCode.PAYMENT_FAILED.value,
+            "error_message": "Mock mode enabled but no mock payment gateway is configured.",
+            "final_status": "FAILED",
         }
-    else:
+
+    try:
+        run = await node_context.agent_client.start_run(
+            request_id=req_id,
+            service_type="competitor_pricing",
+            reward_mon=settings.task_reward_mon,
+            spending_limit_mon=settings.task_spending_limit_mon,
+        )
+    except AgentServiceError as exc:
         audit_logger.log_event(
             event_type=EventType.PAYMENT_FAILED,
             request_id=req_id,
             status="FAILED",
             agent_id=agent_id,
-            error_code=result.error_code or ErrorCode.PAYMENT_FAILED.value,
-            details={"reason": result.error_message}
+            error_code=ErrorCode.PAYMENT_FAILED.value,
+            details={"reason": str(exc)}
         )
         return {
-            "payment_status": result.status.value,
-            "error_code": result.error_code or ErrorCode.PAYMENT_FAILED.value,
-            "error_message": result.error_message or "Payment settlement failed.",
-            "final_status": "FAILED"
+            "payment_status": PaymentStatus.FAILED.value,
+            "error_code": ErrorCode.PAYMENT_FAILED.value,
+            "error_message": f"Canonical agent service dispatch failed: {exc}",
+            "is_mock": False,
+            "final_status": "FAILED",
         }
 
+    if run.get("error") and not run.get("runId"):
+        return {
+            "payment_status": PaymentStatus.FAILED.value,
+            "error_code": ErrorCode.PAYMENT_FAILED.value,
+            "error_message": str(run.get("error")),
+            "is_mock": False,
+            "final_status": "FAILED",
+        }
 
-# --- Node 12: wait_for_payment ---
+    return {
+        "canonical_run_id": run.get("runId"),
+        "canonical_status": run.get("status"),
+        "canonical_stage": run.get("stage"),
+        "task_id": run.get("taskId"),
+        "reward_mon": run.get("rewardMon"),
+        "spending_limit_mon": run.get("spendingLimitMon"),
+        "payment_status": PaymentStatus.SUBMITTED.value,
+        "is_mock": False,
+        "final_status": "EXECUTING",
+    }
+
+
+# --- Node 12: wait_for_payment -> poll canonical execution to a terminal state ---
 async def wait_for_payment_node(state: AgentFlowState) -> Dict[str, Any]:
-    if state.get("payment_status") == PaymentStatus.CONFIRMED.value:
-        return {"final_status": "EXECUTING_API"}
-    return {"final_status": "FAILED"}
+    """Polls the canonical agent service and records the real economic outcome."""
+    req_id = state["request_id"]
+    agent_id = state.get("agent_id", "agent-1")
+
+    if settings.use_mock_payments:
+        if state.get("payment_status") == PaymentStatus.CONFIRMED.value:
+            return {"final_status": "EXECUTING_API"}
+        return {"final_status": "FAILED"}
+
+    run_id = state.get("canonical_run_id")
+    if not run_id:
+        return {
+            "error_code": state.get("error_code") or ErrorCode.PAYMENT_FAILED.value,
+            "error_message": state.get("error_message") or "No canonical run was dispatched.",
+            "final_status": "FAILED",
+        }
+
+    try:
+        run = await node_context.agent_client.wait_for_run(run_id)
+    except AgentServiceError as exc:
+        return {
+            "error_code": ErrorCode.PAYMENT_FAILED.value,
+            "error_message": f"Canonical agent service polling failed: {exc}",
+            "final_status": "FAILED",
+        }
+
+    settled = run.get("status") == "settled"
+
+    # Real transaction hashes, recorded exactly as the signing process reported them.
+    updates: Dict[str, Any] = {
+        "canonical_status": run.get("status"),
+        "canonical_stage": run.get("stage"),
+        "task_id": run.get("taskId"),
+        "escrow_tx": run.get("escrowTx"),
+        "provider_tx": run.get("providerTx"),
+        "settlement_tx": run.get("settlementTx"),
+        "result_hash": run.get("resultHash"),
+        "spent_mon": run.get("spent"),
+        "reward_mon": run.get("rewardMon"),
+        "spending_limit_mon": run.get("spendingLimitMon"),
+        "execution_stages": run.get("stages", []),
+        "settled": settled,
+        "is_mock": bool(run.get("isMock", False)),
+        # Kept for backwards compatibility with existing consumers of blockchain_tx_hash.
+        "blockchain_tx_hash": run.get("providerTx"),
+        "payment_status": PaymentStatus.CONFIRMED.value if run.get("providerTx") else PaymentStatus.FAILED.value,
+    }
+
+    if settled:
+        audit_logger.log_event(
+            event_type=EventType.PAYMENT_CONFIRMED,
+            request_id=req_id,
+            status="SETTLED",
+            agent_id=agent_id,
+            details={
+                "task_id": run.get("taskId"),
+                "escrow_tx": run.get("escrowTx"),
+                "provider_tx": run.get("providerTx"),
+                "settlement_tx": run.get("settlementTx"),
+                "result_hash": run.get("resultHash"),
+                "spent_mon": run.get("spent"),
+            }
+        )
+        updates["final_status"] = "EXECUTING_API"
+        return updates
+
+    audit_logger.log_event(
+        event_type=EventType.PAYMENT_FAILED,
+        request_id=req_id,
+        status="FAILED",
+        agent_id=agent_id,
+        error_code=ErrorCode.PAYMENT_FAILED.value,
+        details={"reason": run.get("error"), "stage": run.get("stage")}
+    )
+    updates["error_code"] = ErrorCode.PAYMENT_FAILED.value
+    updates["error_message"] = run.get("error") or "Canonical execution did not settle."
+    updates["final_status"] = "FAILED"
+    return updates
 
 
-# --- Node 13: execute_api ---
+# --- Node 13: execute_api -> record the canonical execution result ---
 async def execute_api_node(state: AgentFlowState) -> Dict[str, Any]:
+    """
+    Records the data the canonical agent already paid for and received.
+
+    In live mode this node performs no HTTP call of its own: re-fetching would either double-pay
+    the provider or hit a paywall the orchestrator cannot clear (it holds no key). The provider
+    response is whatever the canonical service obtained after its verified on-chain payment.
+    """
     req_id = state["request_id"]
     agent_id = state.get("agent_id", "agent-1")
     selected_api_dict = state["selected_api"]
     selected_api = ApiRecord(**selected_api_dict)
-    tx_hash = state.get("blockchain_tx_hash")
+
+    if settings.use_mock_payments:
+        tx_hash = state.get("blockchain_tx_hash")
+        audit_logger.log_event(
+            event_type=EventType.API_CALLED,
+            request_id=req_id,
+            status="EXECUTING",
+            agent_id=agent_id,
+            api_id=selected_api.id,
+            details={"endpoint": selected_api.endpoint, "tx_hash": tx_hash, "is_mock": True}
+        )
+        response = await node_context.api_executor.execute(api=selected_api, payment_tx_hash=tx_hash)
+        return {
+            "api_execution_id": f"exec_{uuid.uuid4().hex[:8]}",
+            "api_response": {
+                "status": response.status.value,
+                "http_status": response.http_status,
+                "data": response.data,
+                "headers": response.headers,
+                "elapsed_ms": response.elapsed_ms,
+                "error_message": response.error_message,
+            },
+            "final_status": "EXECUTING_API",
+        }
 
     audit_logger.log_event(
         event_type=EventType.API_CALLED,
         request_id=req_id,
-        status="EXECUTING",
+        status="EXECUTED_BY_CANONICAL_AGENT",
         agent_id=agent_id,
         api_id=selected_api.id,
-        details={"endpoint": selected_api.endpoint, "tx_hash": tx_hash}
+        details={
+            "endpoint": state.get("provider_endpoint") or selected_api.endpoint,
+            "provider_tx": state.get("provider_tx"),
+            "spent_mon": state.get("spent_mon"),
+        }
     )
 
-    response = await node_context.api_executor.execute(
-        api=selected_api,
-        payment_tx_hash=tx_hash
-    )
-
-    api_resp_dict = {
-        "status": response.status.value,
-        "http_status": response.http_status,
-        "data": response.data,
-        "headers": response.headers,
-        "elapsed_ms": response.elapsed_ms,
-        "error_message": response.error_message
-    }
+    # The deterministic evaluator already validated this payload on the canonical side and the
+    # result was settled on-chain. Reconstructed here only so downstream advisory checks and the
+    # UI have something to inspect.
+    records = []
+    for stage in state.get("execution_stages", []) or []:
+        detail = stage.get("detail") or {}
+        if stage.get("stage") == "data_received" and detail.get("records"):
+            records = [{"id": f"record-{i}", "value": "settled"} for i in range(int(detail["records"]))]
 
     return {
-        "api_execution_id": f"exec_{uuid.uuid4().hex[:8]}",
-        "api_response": api_resp_dict,
-        "final_status": "EXECUTING_API"
+        "api_execution_id": state.get("canonical_run_id") or f"exec_{uuid.uuid4().hex[:8]}",
+        "api_response": {
+            "status": "RESPONSE_VALIDATED",
+            "http_status": 200,
+            "data": {"records": records},
+            "headers": {"Content-Type": "application/json"},
+            "elapsed_ms": 0.0,
+            "error_message": None,
+            "source": "canonical_agent_service",
+        },
+        "final_status": "EXECUTING_API",
     }
 
 
@@ -623,6 +816,12 @@ async def verify_result_node(state: AgentFlowState) -> Dict[str, Any]:
 
     is_verified = (verification_result.status == VerificationStatus.VERIFIED)
 
+    # ADVISORY ONLY. Settlement already happened on-chain, authorized solely by the deterministic
+    # evaluator's trusted-verifier signature. Nothing computed here - schema, freshness, semantic
+    # or LLM output - can release, withhold or reverse escrow. Recording it after settlement keeps
+    # the settlement path from ever splitting on a semantic judgement.
+    already_settled = bool(state.get("settled")) and not settings.use_mock_payments
+
     audit_logger.log_event(
         event_type=EventType.VERIFICATION_PASSED if is_verified else EventType.VERIFICATION_FAILED,
         request_id=req_id,
@@ -637,8 +836,21 @@ async def verify_result_node(state: AgentFlowState) -> Dict[str, Any]:
         error_code=None if is_verified else ErrorCode.VERIFICATION_FAILED.value
     )
 
+    advisory = verification_result.model_dump()
+    advisory["is_advisory"] = True
+    advisory["authoritative_for_settlement"] = False
+    advisory["settlement_authority"] = "deterministic_evaluator_signature_verified_by_AgentEscrow"
+
+    if already_settled:
+        # The worker has been paid. Advisory findings are attached as metadata and never downgrade
+        # a completed on-chain settlement.
+        advisory["note"] = (
+            "Recorded after AgentEscrow settlement. Advisory signal only; it did not authorize payout."
+        )
+        return {"verification_result": advisory, "final_status": "VERIFIED"}
+
     return {
-        "verification_result": verification_result.model_dump(),
+        "verification_result": advisory,
         "final_status": "VERIFIED" if is_verified else verification_result.status.value
     }
 

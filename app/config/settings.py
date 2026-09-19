@@ -10,6 +10,10 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+# Development-only fallback. Refused outside development by Settings.model_post_init below.
+DEFAULT_DEV_JWT_SECRET = "agentflow-dev-only-insecure-secret"
+
+
 class RiskThresholdSettings(BaseModel):
     low_max: int = 29
     medium_max: int = 59
@@ -69,8 +73,38 @@ class Settings(BaseModel):
     task_reward_mon: float = Field(default_factory=lambda: float(os.getenv("TASK_REWARD_MON", "0.05")))
     task_spending_limit_mon: float = Field(default_factory=lambda: float(os.getenv("TASK_SPENDING_LIMIT_MON", "0.02")))
 
+    # Canonical agent service (agents/service.ts) - the ONLY process holding the economic signer.
+    # Python orchestrates it over HTTP and never receives a private key.
+    agent_service_url: str = Field(default_factory=lambda: os.getenv("AGENT_SERVICE_URL", "http://localhost:4100"))
+    agent_service_timeout_seconds: float = Field(default_factory=lambda: float(os.getenv("AGENT_SERVICE_TIMEOUT", "30.0")))
+    agent_service_max_wait_seconds: float = Field(default_factory=lambda: float(os.getenv("AGENT_SERVICE_MAX_WAIT", "180.0")))
+
+    # AgentWallet's immutable per-payment cap, mirrored here so the Python policy engine can never
+    # approve an invoice the chain is guaranteed to revert. The chain remains the final authority.
+    wallet_max_payment_mon: float = Field(default_factory=lambda: float(os.getenv("WALLET_MAX_PAYMENT_MON", "0.02")))
+
+    # Mock payments are TEST-ONLY and must be opted into explicitly. When false (the default), the
+    # live request path dispatches to the canonical TypeScript agent service and real transactions.
+    use_mock_payments: bool = Field(
+        default_factory=lambda: os.getenv("USE_MOCK_PAYMENTS", "false").lower() in ("true", "1", "yes")
+    )
+
+    # CORS: explicit origin allowlist. Never "*" together with credentials.
+    cors_allow_origins: List[str] = Field(
+        default_factory=lambda: [
+            o.strip()
+            for o in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+            if o.strip()
+        ]
+    )
+
+    # Allow localhost provider endpoints (SSRF relaxation) only under an explicit demo/dev flag.
+    allow_local_provider: bool = Field(
+        default_factory=lambda: os.getenv("ALLOW_LOCAL_PROVIDER", "true").lower() in ("true", "1", "yes")
+    )
+
     # JWT / Auth Secret
-    jwt_secret: str = Field(default_factory=lambda: os.getenv("JWT_SECRET", "agentflow-super-secret-key-change-in-prod"))
+    jwt_secret: str = Field(default_factory=lambda: os.getenv("JWT_SECRET", DEFAULT_DEV_JWT_SECRET))
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
 
@@ -83,6 +117,19 @@ class Settings(BaseModel):
         "reputation_score": 0.10,
         "price_score": 0.10,
     }
+
+
+    def model_post_init(self, __context) -> None:
+        """Refuses insecure defaults outside development."""
+        if self.environment.lower() not in ("development", "dev", "test", "testing"):
+            if self.jwt_secret == DEFAULT_DEV_JWT_SECRET:
+                raise ValueError(
+                    "JWT_SECRET must be set to a non-default value when ENVIRONMENT is not development."
+                )
+            if "*" in self.cors_allow_origins:
+                raise ValueError(
+                    "CORS_ALLOW_ORIGINS must list explicit origins (never '*') outside development."
+                )
 
 
 # Global singleton settings

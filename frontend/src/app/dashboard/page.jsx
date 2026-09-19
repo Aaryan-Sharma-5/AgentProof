@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAccount, useConnect, useDisconnect, useReadContract, useBalance } from "wagmi";
 import { formatEther } from "viem";
 import { monadTestnet, explorerAddressUrl, explorerTxUrl } from "../../lib/chain";
 import { AGENT_WALLET_ADDRESS, AGENT_ESCROW_ADDRESS, agentWalletAbi, agentEscrowAbi } from "../../lib/contracts";
+import { submitTask, listTasks, buildLifecycle, isRealTxHash, getSystemStatus } from "../../lib/api";
 
 const DEMO_TASK_ID =
   process.env.NEXT_PUBLIC_DEMO_TASK_ID ||
@@ -367,6 +368,145 @@ function FailureDemoSection() {
   );
 }
 
+
+/// Live execution panel: the PRIMARY state of the dashboard.
+/// Submits a task to FastAPI, which orchestrates the canonical TypeScript agent service.
+/// The DEMO_* constants below are only a fallback for when no live run has been performed yet.
+function LiveExecutionPanel() {
+  const [record, setRecord] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState(null);
+  const [backend, setBackend] = useState(null);
+
+  useEffect(() => {
+    getSystemStatus()
+      .then(setBackend)
+      .catch((e) => setBackend({ error: e.message }));
+  }, []);
+
+  // Recover the most recent run so a refresh does not lose the live narrative.
+  useEffect(() => {
+    listTasks()
+      .then((rows) => {
+        const settled = rows.filter((r) => r.settlement_tx || r.escrow_tx);
+        if (settled.length) setRecord(settled[settled.length - 1]);
+      })
+      .catch(() => {});
+  }, []);
+
+  const run = useCallback(async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      const result = await submitTask("Research three competitors and produce a pricing comparison.");
+      setRecord(result);
+      if (result.error_message) setError(result.error_message);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRunning(false);
+    }
+  }, []);
+
+  const lifecycle = buildLifecycle(record);
+  const mock = Boolean(record?.is_mock);
+
+  return (
+    <Card title="Live Execution" icon="play_circle">
+      <div className="flex flex-col gap-space-md">
+        <div className="flex flex-wrap items-center justify-between gap-space-sm">
+          <div className="flex flex-col">
+            <p className="font-body-sm text-body-sm text-secondary">
+              Browser → FastAPI → LangGraph → canonical agent → Monad Testnet
+            </p>
+            {backend && !backend.error && (
+              <p className="font-body-sm text-body-sm text-secondary">
+                backend chain {backend.chain_id} · agent service{" "}
+                {backend.agent_service?.reachable ? "online" : "offline"} ·{" "}
+                {backend.use_mock_payments ? "MOCK MODE" : "live mode"}
+              </p>
+            )}
+            {backend?.error && (
+              <p className="font-body-sm text-body-sm text-error">Backend unreachable: {backend.error}</p>
+            )}
+          </div>
+          <button
+            onClick={run}
+            disabled={running}
+            className="px-space-lg py-2.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md shadow-sm disabled:opacity-50"
+          >
+            {running ? "Running on Monad Testnet…" : "Run Canonical Task"}
+          </button>
+        </div>
+
+        {mock && (
+          <div className="rounded-lg border border-error px-space-md py-2">
+            <p className="font-label-sm text-label-sm text-error">
+              MOCK MODE — these transactions are simulated and are not linked to the explorer.
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg bg-surface-container px-space-md py-2">
+            <p className="font-body-sm text-body-sm text-error break-all">{error}</p>
+          </div>
+        )}
+
+        {record && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-space-md">
+            <Stat label="Reward" value={`${record.reward_mon ?? "-"} MON`} />
+            <Stat label="Spend Cap" value={`${record.spending_limit_mon ?? "-"} MON`} />
+            <Stat label="Spent" value={`${record.spent_mon ?? "0"} MON`} />
+            <Stat label="Status" value={record.settled ? "SETTLED" : record.final_status} />
+          </div>
+        )}
+
+        {lifecycle.length > 0 && (
+          <div className="flex flex-col gap-space-xs mt-space-sm">
+            {lifecycle.map((step) => (
+              <div key={step.key} className="flex items-center justify-between gap-space-md py-1.5 border-b border-surface-container last:border-0">
+                <div className="flex items-center gap-space-sm min-w-0">
+                  <span
+                    className={`material-symbols-outlined text-[18px] ${
+                      step.failed ? "text-error" : step.done ? "text-tertiary" : "text-secondary opacity-40"
+                    }`}
+                  >
+                    {step.failed ? "cancel" : step.done ? "check_circle" : "radio_button_unchecked"}
+                  </span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-label-sm text-label-sm text-on-surface">{step.label}</span>
+                    <span className="font-body-sm text-body-sm text-secondary truncate">{step.detail}</span>
+                  </div>
+                </div>
+                {/* A mock hash is never rendered as an explorer link. */}
+                {step.tx && !step.mock && isRealTxHash(step.tx) ? (
+                  <ExplorerLink href={explorerTxUrl(step.tx)}>{truncate(step.tx, 8, 6)}</ExplorerLink>
+                ) : step.tx ? (
+                  <span className="font-mono text-body-sm text-secondary">{truncate(step.tx, 8, 6)} (mock)</span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {record?.task_id && (
+          <p className="font-mono text-body-sm text-secondary break-all mt-space-sm">
+            taskId {record.task_id}
+            {record.result_hash ? ` · resultHash ${record.result_hash}` : ""}
+          </p>
+        )}
+
+        {!record && (
+          <p className="font-body-sm text-body-sm text-secondary">
+            No live run yet. The panels below show the last proven Testnet demo run.
+          </p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function LiveChainPanel() {
   const { data: agent } = useReadContract({
     address: AGENT_WALLET_ADDRESS,
@@ -454,6 +594,8 @@ export default function Dashboard() {
       <Header />
       <main className="max-w-[1200px] mx-auto px-gutter py-space-xl flex flex-col gap-space-xl">
         <TaskCard />
+
+        <LiveExecutionPanel />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-xl">
           <Timeline />

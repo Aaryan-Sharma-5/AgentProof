@@ -6,7 +6,9 @@
   "scripts": {
     "provider": "tsx provider/server.ts",
     "worker": "tsx runWorker.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "service": "tsx service.ts",
+    "test": "tsx --test test/*.test.ts"
   },
   "keywords": [],
   "author": "",

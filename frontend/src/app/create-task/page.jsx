@@ -1,8 +1,45 @@
+"use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { submitTask, getSystemStatus } from '../../lib/api';
+
+const CANONICAL_TASK = "Research three competitors and produce a pricing comparison.";
 
 export default function CreateTask() {
+  const router = useRouter();
+  const [objective, setObjective] = useState(CANONICAL_TASK);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+  const [backend, setBackend] = useState(null);
+
+  useEffect(() => {
+    getSystemStatus().then(setBackend).catch((e) => setBackend({ error: e.message }));
+  }, []);
+
+  // Dispatches to FastAPI, which orchestrates the canonical TypeScript agent service.
+  // The browser never signs anything; it only submits the task and reads back real state.
+  async function dispatch() {
+    setSubmitting(true);
+    setError(null);
+    setResult(null);
+    try {
+      const record = await submitTask(objective);
+      setResult(record);
+      if (record.error_message) {
+        setError(record.error_message);
+      } else if (record.settled) {
+        router.push('/dashboard');
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-surface-container"><div className="h-16 w-full px-gutter flex items-center justify-between"><div className="flex items-center gap-space-md"><img alt="AgentProof Logo" className="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1UtHf8oOF7fpui2t5a8XHYBUKK1hPA7aojbputIJ7-vIK70l4wn_-gVrXL6jjUbQS6dtxQqET98K1RkDy66mpa8sS5b_98Zxicc9reYuomRQTrT_LcieztTSZs2fA73tDnzsjMA3MnNzHNmYLtXFnCB1m9NvCTyxZsRwu_kGdSaoEjZdaMsvK1i5i2_R9_j5qi8U6nNbyAiPMMbRznZRpwhqzGYvkf3u-NEtY1I8APNSlGLHo-UCNipKA"/><span className="font-headline-sm text-headline-sm tracking-tight text-on-surface font-semibold">AgentProof</span></div><nav className="hidden md:flex items-center gap-gutter" data-active-classes="text-on-surface font-label-md text-label-md border-b-2 border-primary-container pb-1"><Link aria-current="page" className="transition-colors text-on-surface font-label-md text-label-md border-b-2 border-primary-container pb-1" data-path="tasks" href="/dashboard">Tasks</Link><Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="marketplace" href="/marketplace">Marketplace</Link><Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="agentflow-policy" href="#">AgentFlow Policy</Link><Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="wallet-escrow" href="#">Wallet Escrow</Link></nav><div className="flex items-center gap-space-md"><div className="hidden sm:flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low border border-surface-container"><span className="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span><span className="font-label-sm text-label-sm text-on-surface">Monad Devnet</span></div><div className="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low border border-surface-container hover:bg-surface-container transition-colors cursor-pointer"><span className="font-label-sm text-label-sm font-semibold text-on-surface">14.50 MON</span><span className="font-body-sm text-body-sm text-secondary">|</span><span className="font-label-sm text-label-sm text-secondary font-mono">0x71C...4f9b</span></div><div className="flex items-center pl-space-xs"><img alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9BEV8p1SJGFqsOSr1Sw1je0DEOTYVeDQn8C8yWGoftlnGjA1ah5d9CP7nl6PSRnktAgr2XlHV6ktwSrXWKMI05feUb_PGTTJABTnE5_cTznLS6inLbnmXbQIH0mX-Wn6h0_z4Z6UnnES7jepcvx9O5Wrm59wdC_h-LTTSiMo_fmjZKhSrHWTLfZt7V5Cxgwt9h3IVEnX3_mGFEW0HwXCZHgrNmowUj0cmYaOLcO77l58anHK8i3UK"/></div></div></div></header><aside className="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-lowest border-r border-surface-container z-40 flex flex-col justify-between py-space-lg px-space-md overflow-y-auto"><div className="flex flex-col gap-space-lg"><div className="px-space-md"><p className="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Economic Workspace</p></div><nav className="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-semibold shadow-sm"><Link className="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="live-execution-monitor" href="/monitor"><span className="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">monitoring</span><span className="font-label-md text-label-md">Execution Monitor</span></Link><Link className="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="autonomous-agents" href="#"><span className="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">smart_toy</span><span className="font-label-md text-label-md">Registered Agents</span></Link><Link className="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="proof-verification" href="#"><span className="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">verified_user</span><span className="font-label-md text-label-md">Zero-Knowledge Proofs</span></Link><Link className="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="liquidity-escrow-vaults" href="#"><span className="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">account_balance_wallet</span><span className="font-label-md text-label-md">Escrow Vaults</span></Link><Link className="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="dispute-arbitration" href="#"><span className="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">gavel</span><span className="font-label-md text-label-md">Arbitration &amp; Slashing</span></Link></nav></div><div className="flex flex-col gap-space-md px-space-md pt-space-lg border-t border-surface-container"><div className="flex items-center justify-between"><div className="flex items-center gap-space-xs"><span className="w-2 h-2 rounded-full bg-tertiary-container"></span><span className="font-label-sm text-label-sm text-secondary">Consensus Active</span></div><span className="font-label-sm text-label-sm font-mono text-on-surface-variant">v1.4.2</span></div><p className="font-body-sm text-body-sm text-secondary">© 2025 AgentProof Network</p></div></aside><div className="pl-64"><main className="w-full min-h-screen pt-16 bg-surface"><div className="flex flex-col w-full">
@@ -39,6 +76,34 @@ export default function CreateTask() {
 <span className="w-5 h-5 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center font-label-sm text-[11px]">3</span>
 <span className="font-label-md text-label-md whitespace-nowrap">3. Lock &amp; Dispatch</span>
 </button>
+</div>
+
+<div className="flex flex-col gap-space-xs w-full sm:w-auto px-space-sm">
+<button
+  onClick={dispatch}
+  disabled={submitting || !objective.trim()}
+  type="button"
+  className="px-space-lg py-2.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md shadow-sm disabled:opacity-50 whitespace-nowrap"
+>
+  {submitting ? "Executing on Monad Testnet…" : "Lock 0.05 MON & Dispatch Agent"}
+</button>
+{backend && !backend.error && (
+  <span className="font-body-sm text-body-sm text-secondary text-center">
+    chain {backend.chain_id} · agent service {backend.agent_service?.reachable ? "online" : "offline"}
+    {backend.use_mock_payments ? " · MOCK MODE" : ""}
+  </span>
+)}
+{backend?.error && (
+  <span className="font-body-sm text-body-sm text-error text-center">Backend offline: {backend.error}</span>
+)}
+{error && (
+  <span className="font-body-sm text-body-sm text-error break-all max-w-sm">{error}</span>
+)}
+{result && result.settled && (
+  <span className="font-body-sm text-body-sm text-tertiary text-center">
+    Settled. {result.reward_mon} MON released — opening dashboard…
+  </span>
+)}
 </div>
 <div className="hidden lg:flex items-center gap-space-xs pr-space-sm text-secondary">
 <span className="material-symbols-outlined text-[18px]">verified_user</span>
@@ -101,11 +166,17 @@ export default function CreateTask() {
 <span className="text-secondary font-label-sm text-label-sm font-mono">Tokens: ~84 est.</span>
 </label>
 <div className="relative bg-surface-container-low rounded-xl p-space-md focus-within:bg-surface-container-lowest focus-within:shadow-sm transition-all">
-<textarea className="w-full bg-transparent border-0 resize-none text-on-surface font-body-md text-body-md focus:outline-none placeholder:text-secondary/60" rows="4">Query real-time token liquidity across Monad AMMs, compute price slippage for 10,000 USDC swaps, and output a signed markdown analysis table.</textarea>
+<textarea
+  className="w-full bg-transparent border-0 resize-none text-on-surface font-body-md text-body-md focus:outline-none placeholder:text-secondary/60"
+  rows="4"
+  value={objective}
+  onChange={(e) => setObjective(e.target.value)}
+  placeholder={CANONICAL_TASK}
+/>
 <div className="flex flex-wrap items-center justify-between gap-space-xs pt-space-xs">
 <div className="flex items-center gap-1.5 text-secondary">
 <span className="material-symbols-outlined text-[16px] text-tertiary">schema</span>
-<span className="font-label-sm text-label-sm">Requires Liquidity Indexer &amp; Slippage Tool APIs</span>
+<span className="font-label-sm text-label-sm">Resolves to the Competitor Pricing API (0.01 MON, HTTP 402)</span>
 </div>
 <button className="font-label-sm text-label-sm text-primary hover:underline flex items-center gap-0.5" type="button">
 <span className="material-symbols-outlined text-[14px]">history</span>

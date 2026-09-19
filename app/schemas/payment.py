@@ -50,3 +50,6 @@ class PaymentResult(BaseModel):
     block_number: Optional[int] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
+    # True only for simulated payments from MockPaymentAdapter. A tx_hash carrying is_mock=True is
+    # fabricated and must never be rendered as an explorer link.
+    is_mock: bool = False

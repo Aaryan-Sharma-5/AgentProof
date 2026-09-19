@@ -42,6 +42,19 @@ from app.graph.routing import (
 )
 
 
+# Canonical execution aliases. The graph topology is unchanged; these names document what the
+# payment-stage nodes now actually do after Phase 6B:
+#   execute_payment  -> dispatch_canonical_execution (POST /run on the TypeScript agent service)
+#   wait_for_payment -> poll_canonical_execution     (GET /run/:id until settled/failed)
+#   execute_api      -> record_canonical_result      (records data the agent already paid for)
+# Python orchestrates these steps. It never signs, pays or settles.
+CANONICAL_NODE_ALIASES = {
+    "execute_payment": "dispatch_canonical_execution",
+    "wait_for_payment": "poll_canonical_execution",
+    "execute_api": "record_canonical_result",
+}
+
+
 class DeterministicStateGraphRunner:
     """
     High-performance asynchronous workflow runner for AgentFlow.
