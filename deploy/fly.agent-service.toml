@@ -1,0 +1,45 @@
+# Canonical agent service - THE SOLE ECONOMIC SIGNER.
+#
+# CRITICAL: this app must run as exactly ONE machine. It holds AGENT_KEY and VERIFIER_KEY and
+# signs createTask / payService / settleTask from a single account. A second replica would race
+# the account nonce and drop transactions.
+#
+# Deploy:  fly deploy -c deploy/fly.agent-service.toml
+# Scale:   fly scale count 1 -a agentproof-agent      (NEVER above 1)
+
+app = "agentproof-agent"
+primary_region = "sin"
+
+[build]
+  dockerfile = "../agents/Dockerfile"
+
+[env]
+  AGENT_SERVICE_PORT = "4100"
+  TASK_REWARD_MON = "0.05"
+  TASK_SPENDING_LIMIT_MON = "0.02"
+  PROVIDER_INVOICE_MON = "0.01"
+  MONAD_RPC = "https://testnet-rpc.monad.xyz"
+  AGENT_WALLET_ADDRESS = "0x7263058B4040ae7410340f63d292152DE8d867FA"
+  ESCROW_ADDRESS = "0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1"
+  PROVIDER_ADDRESS = "0x322BE7De3f74e57B87F24Bb68199e89d97652697"
+  # PROVIDER_URL is set per-deployment to the public provider app:
+  #   fly secrets set PROVIDER_URL=https://agentproof-provider.fly.dev/pricing -a agentproof-agent
+
+[http_service]
+  internal_port = 4100
+  force_https = true
+  # Single signer: never start a second machine, never stop the running one mid-run.
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

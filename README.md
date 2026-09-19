@@ -8,7 +8,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent%20Graph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://github.com/langchain-ai/langgraph)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14%20App%20Router-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Tests](https://img.shields.io/badge/Tests-80%2F80%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](./run_tests.py)
+[![Tests](https://img.shields.io/badge/Tests-84%2F84%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](./run_tests.py)
 [![Monad Blitz](https://img.shields.io/badge/Hackathon-Monad%20Blitz%20Mumbai%20V4-FF007A?style=for-the-badge)](https://monad.xyz)
 
 <br/>
@@ -85,7 +85,7 @@ AgentProof establishes an end-to-end, two-sided economic framework:
 
 | Resource | Link | Description |
 |---|---|---|
-| **Live Web3 Application** | **[https://agentproof.vercel.app](https://agentproof.vercel.app)** | Production Next.js 14 dApp on Monad Testnet |
+| **Frontend (stale build)** | [https://agentproof.vercel.app](https://agentproof.vercel.app) | ⚠️ Serves a pre-integration build: `/dashboard` and `/create-task` return 404 and it is not wired to a public backend. Redeploy per [deploy/README.md](deploy/README.md). |
 | **GitHub Repository** | **[https://github.com/Aaryan-Sharma-5/AgentProof](https://github.com/Aaryan-Sharma-5/AgentProof)** | Open-source codebase, contracts, & test suites |
 | **Monad Testnet Explorer** | **[https://testnet.monadscan.com](https://testnet.monadscan.com)** | Monad Testnet Block Explorer (Chain ID: `10143`) |
 
@@ -217,7 +217,7 @@ interface IAgentEscrow {
 - [x] **Security Hardening**: Built RFC 1918 / link-local SSRF guards and request-level idempotency deduplication.
 - [x] **Service Marketplace**: Native HTTP 402 machine invoice generator and automated Monad tx confirmation.
 - [x] **Web3 Frontend**: High-performance Next.js 14 dApp featuring task creation, marketplace directory, and live agent monitoring.
-- [x] **Verification**: **80/80 automated Python tests passing** across unit, graph, security, edge-case and integration suites, plus 8 TypeScript service-boundary tests.
+- [x] **Verification**: **84/84 automated Python tests passing** across unit, graph, security, edge-case and integration suites, plus 8 TypeScript service-boundary tests.
 
 ---
 
@@ -229,7 +229,7 @@ interface IAgentEscrow {
 | **AI Orchestration** | LangGraph, LangChain Core, Pydantic v2, Python 3.11+, TypeScript, Node.js v20+ |
 | **Backend & API** | FastAPI, Uvicorn (ASGI), SSRF Network Guard, In-Memory Repository & Idempotency Store |
 | **Frontend dApp** | Next.js 14 (App Router), Wagmi v2, TanStack React Query, Tailwind CSS |
-| **Testing** | 80 Python Suites (Custom Runner), 8 TypeScript Boundary Tests, Foundry Tests |
+| **Testing** | 84 Python Suites (Custom Runner), 8 TypeScript Boundary Tests, Foundry Tests |
 
 ---
 
@@ -343,8 +343,40 @@ The complete economic loop was executed live on Monad Testnet and can be inspect
 | **3. Settle Bounty** | [`0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8`](https://testnet.monadscan.com/tx/0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8) | `0.05 MON` | `AgentEscrow` releases bounty to worker upon valid signature |
 | **Canonical Task ID** | `0x8f01fd3dd74d67bd88241970c7123e1b701a5a78b2a6269eb7a564b4dd5b925c` | — | Canonical E2E demo task identifier |
 
-### 11.4 Live Application Deployment
-- **Production Web3 Application**: [https://agentproof.vercel.app](https://agentproof.vercel.app)
+#### Latest run — full stack, separate provider EOA (Phase 6C)
+
+Dispatched through **Browser → FastAPI → LangGraph → agent service → Monad Testnet**, with the
+provider paid at a **separate EOA** so the 0.01 MON is a genuine external transfer:
+
+| Action | Transaction Hash | Value | Verified |
+|---|---|---|---|
+| **1. Lock Reward** | [`0xcf8b4c0377d1695d38dd7d3cdf1f8b4905dbe900aa12c7dcff52a6f3741edae4`](https://testnet.monadscan.com/tx/0xcf8b4c0377d1695d38dd7d3cdf1f8b4905dbe900aa12c7dcff52a6f3741edae4) | `0.05 MON` | `TaskCreated`, block 63872705 |
+| **2. Pay Provider** | [`0x892513c4409009594d511d719f15f5c713f107c5207c88bf321c8d9a8ea9fab0`](https://testnet.monadscan.com/tx/0x892513c4409009594d511d719f15f5c713f107c5207c88bf321c8d9a8ea9fab0) | `0.01 MON` | `PaymentSettled` → `0x322BE7De…2697`, block 63872712 |
+| **3. Settle Bounty** | [`0x00a7b475485905a73b7ccfb91f7a49e76140d2159985ba2a3e28c6b2fca40f7a`](https://testnet.monadscan.com/tx/0x00a7b475485905a73b7ccfb91f7a49e76140d2159985ba2a3e28c6b2fca40f7a) | `0.05 MON` | `TaskSettled` → worker, block 63872720 |
+| **Task ID** | `0xe4853e5c09caaa1d607816275a414a7f81c9022e2ff006c6eaa9389d0314981e` | — | on-chain `settled = true` |
+| **Result Hash** | `0x0dbdd938243c45c39d9668f381bc1208966d6e7ba9f5a98fb7f5dc94b9874f1f` | — | digest signed by the trusted verifier |
+
+Measured balance movement for this run:
+
+| Account | Before | After | Δ |
+|---|---|---|---|
+| Provider EOA `0x322BE7De…2697` | `0 MON` | `0.01 MON` | **+0.01 (external)** |
+| `AgentWallet` | `0.47 MON` | `0.46 MON` | −0.01 |
+| `AgentEscrow` | unchanged | unchanged | 0.05 in, 0.05 out |
+
+### 11.4 Deployment Status
+
+> [!WARNING]
+> **The fully integrated stack is not yet publicly deployed.**
+>
+> `https://agentproof.vercel.app` currently serves a **pre-integration build**: `/dashboard` and
+> `/create-task` return 404, and no public FastAPI or agent service is running, so the live
+> execution flow is unavailable there.
+>
+> The complete flow **has** been verified end-to-end against real Monad Testnet contracts running
+> locally (see §11.3). Deployment configuration for all four services is written, container-built
+> and ready in [deploy/](deploy/) — it awaits Fly.io billing activation and a Vercel re-login.
+> Follow [deploy/README.md](deploy/README.md) to bring the public stack up.
 
 ---
 
@@ -405,7 +437,7 @@ ESCROW_ADDRESS=0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1
 
 # Provider and canonical demo economics
 PROVIDER_PORT=4000
-PROVIDER_ADDRESS=0x<address that receives provider payments>
+PROVIDER_ADDRESS=0x322BE7De3f74e57B87F24Bb68199e89d97652697   # separate EOA, receive-only
 PROVIDER_INVOICE_MON=0.01
 PROVIDER_URL=http://localhost:4000/pricing
 AGENT_SERVICE_PORT=4100
@@ -541,7 +573,7 @@ digest, `ecrecover` fails to match `trustedVerifier`, and the transaction revert
 ### Running the tests
 
 ```bash
-python run_tests.py                 # 80 Python tests (hermetic; sets USE_MOCK_PAYMENTS=true)
+python run_tests.py                 # 84 Python tests (hermetic; sets USE_MOCK_PAYMENTS=true)
 cd agents && npm run typecheck      # TypeScript types
 cd agents && npm test               # service + registry boundary tests
 cd contracts && forge test          # Solidity
@@ -557,6 +589,176 @@ cd contracts && forge test          # Solidity
 | `JWT_SECRET` | FastAPI environment | frontend, git |
 
 No `NEXT_PUBLIC_*` variable may ever hold a private key — those are compiled into the browser bundle.
+
+---
+
+---
+
+## 13. Production Deployment
+
+The full runbook is in **[deploy/README.md](deploy/README.md)**. Summary:
+
+| Service | Host | Holds keys? | Scaling |
+|---|---|---|---|
+| Next.js frontend | Vercel | No | any |
+| FastAPI + LangGraph | Fly.io (`deploy/fly.api.toml`) | No | any |
+| **Canonical agent service** | Fly.io (`deploy/fly.agent-service.toml`) | **AGENT_KEY + VERIFIER_KEY** | **exactly 1 machine** |
+| HTTP 402 provider | Fly.io (`deploy/fly.provider.toml`) | No | any |
+
+> [!WARNING]
+> The agent service must run as **exactly one machine**. It signs `createTask`, `payService` and
+> `settleTask` from a single account; a second replica would race the account nonce and drop
+> transactions. `auto_stop_machines`/`auto_start_machines` are disabled in its config for this
+> reason. Never run `fly scale count 2` on it.
+
+Production configuration is enforced in code, not just documented. With `ENVIRONMENT=production`
+the API refuses to start if:
+
+- `JWT_SECRET` is the development default,
+- `CORS_ALLOW_ORIGINS` contains `*`,
+- `ALLOW_LOCAL_PROVIDER` is true (SSRF hardening),
+
+and `debug` is forced to `false` regardless of the `DEBUG` variable, so stack traces never reach a
+public client.
+
+### Environment variables
+
+**Secrets — `agents/.env` (or Fly secrets on `agentproof-agent`) only:**
+
+| Variable | Used by | Notes |
+|---|---|---|
+| `AGENT_KEY` | agent service | Must match `AgentWallet.agent()` |
+| `VERIFIER_KEY` | agent service | Must match `AgentEscrow.trustedVerifier()` |
+| `DEPLOYER_KEY` | Foundry only | Not needed to run the demo |
+| `JWT_SECRET` | FastAPI | `openssl rand -hex 32`; required outside development |
+
+**Non-secret:**
+
+| Variable | Service | Default |
+|---|---|---|
+| `AGENT_SERVICE_URL` | FastAPI | `http://localhost:4100` |
+| `USE_MOCK_PAYMENTS` | FastAPI | `false` — must stay false for any real demo |
+| `CORS_ALLOW_ORIGINS` | FastAPI | `http://localhost:3000,http://127.0.0.1:3000` |
+| `ALLOW_LOCAL_PROVIDER` | FastAPI | `true` locally, **`false` in production** |
+| `DEBUG` | FastAPI | `false` (force-disabled in production) |
+| `NEXT_PUBLIC_API_BASE_URL` | frontend | `http://localhost:8000` |
+| `NEXT_PUBLIC_PROVIDER_ADDRESS` | frontend | provider payout EOA (public) |
+| `PROVIDER_ADDRESS` | agent service, provider | `0x322BE7De3f74e57B87F24Bb68199e89d97652697` |
+
+Templates: [`agents/.env.example`](agents/.env.example), [`app.env.example`](app.env.example),
+[`frontend/.env.example`](frontend/.env.example).
+
+No `NEXT_PUBLIC_*` variable may hold a private key — those are compiled into the browser bundle.
+
+---
+
+## 14. The Four Economic Identities
+
+Connecting a browser wallet does **not** make it the spending wallet. Five distinct roles:
+
+| Role | Address | What it does |
+|---|---|---|
+| **Your browser wallet** | whatever you connect | Identity and read-only viewing. **Signs nothing.** |
+| **AgentWallet** (contract) | `0x7263058B4040ae7410340f63d292152DE8d867FA` | Holds agent spending capital; enforces a 0.02 MON immutable per-payment cap |
+| **Authorized agent** | `0x4c7c4d8155Fed9b9f09c6619d98773ACcA881305` | The only key `AgentWallet` accepts. Lives server-side in the agent service |
+| **Trusted verifier** | `0x4c7c4d8155Fed9b9f09c6619d98773ACcA881305` | Signs result digests; `AgentEscrow` releases funds only for this signature |
+| **Provider** | `0x322BE7De3f74e57B87F24Bb68199e89d97652697` | **Separate EOA** that receives the 0.01 MON service payment |
+
+The dashboard's "Who Holds What" panel renders this live from the contracts.
+
+---
+
+## 15. Trust Model
+
+AgentProof is **not** a trustless AI verification system, and this README will not claim otherwise.
+
+```
+Worker → TaskResult → deterministic evaluator → trusted verifier signature → AgentEscrow
+```
+
+What the blockchain actually guarantees:
+
+- The configured evaluator authorized this exact **chain ID, escrow address, task ID, worker
+  address and resultHash**. A signature for one task, worker or result cannot be replayed for
+  another.
+- `AgentWallet` cannot pay more than its immutable per-payment cap, and only its authorized agent
+  can spend.
+- A settled task cannot be settled twice.
+
+What it does **not** guarantee:
+
+- That the AI's answer is objectively correct. The evaluator runs deterministic structural checks
+  (10 records, unique IDs) — not a judgement of truth.
+- Decentralized verification. There is **one** trusted evaluator key.
+
+**The Python semantic/LLM verifier is advisory only.** It runs *after* settlement and is recorded
+as metadata with `is_advisory: true` and `authoritative_for_settlement: false`. No LLM output can
+release, withhold or reverse escrow.
+
+**Division of responsibility:**
+
+- **Python orchestrates** — parses requirements, discovers services, applies policy and risk, and
+  can *prevent* a run from starting. It holds no key and can never authorize a payment.
+- **TypeScript executes the economics** — the sole signer process; the only thing that pays,
+  proves and settles.
+- **Solidity enforces the monetary rules** — the final authority on every transfer.
+
+---
+
+## 16. Known MVP Limitations
+
+Stated plainly, because a demo that hides these is not credible:
+
+1. **`AGENT_KEY` and `VERIFIER_KEY` are the same key** in the current deployment. The worker and
+   the evaluator are therefore the same entity — the agent effectively signs off on its own work.
+   Separating them requires redeploying `AgentEscrow` with a different `trustedVerifier`, which is
+   deliberately out of scope. The cryptographic binding is real; the *independence* is not.
+2. **One trusted evaluator.** No consensus, no dispute mechanism, no slashing.
+3. **Provider payment verification is replayable.** The provider accepts any valid `PaymentSettled`
+   transaction for the right address and amount; the same tx hash could be reused across requests.
+   Adequate for an MVP, not a production x402 implementation.
+4. **In-memory state.** FastAPI stores requests in process memory; a restart clears history.
+   On-chain state is unaffected.
+5. **Deterministic checks are structural.** `records.length === 10` and unique IDs — the evaluator
+   does not assess whether the pricing data is *true*.
+6. **Single-instance agent service.** Horizontal scaling would require a nonce manager or
+   per-replica keys; neither is implemented.
+7. **Testnet only.** No mainnet deployment.
+
+---
+
+## 17. Reproducing From Scratch
+
+```bash
+git clone https://github.com/Aaryan-Sharma-5/AgentProof.git && cd AgentProof
+pip install -r requirements.txt
+(cd agents && npm install) && (cd frontend && npm install)
+
+cp agents/.env.example agents/.env     # fill in AGENT_KEY and VERIFIER_KEY
+cp app.env.example .env                # optional; defaults work for local development
+
+# Fund AgentWallet (each run spends 0.01 MON)
+cast send 0x7263058B4040ae7410340f63d292152DE8d867FA "deposit()" \
+  --value 0.5ether --rpc-url https://testnet-rpc.monad.xyz --private-key $AGENT_KEY
+
+# Four terminals
+cd agents && npm run provider      # :4000
+cd agents && npm run service       # :4100
+python -m uvicorn app.main:app --port 8000
+cd frontend && npm run dev         # :3000
+
+# Verify, then run the canonical task
+curl http://localhost:4100/health
+curl http://localhost:8000/v1/system/status
+curl -X POST http://localhost:8000/v1/agent-requests \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Research three competitors and produce a pricing comparison."}'
+
+# Tests
+python run_tests.py                 # 84 Python
+cd agents && npm run typecheck && npm test    # types + 8 boundary tests
+cd contracts && forge test          # 26 Solidity
+```
 
 ---
 

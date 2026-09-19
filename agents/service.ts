@@ -85,6 +85,35 @@ const runs = new Map<string, RunRecord>();
 /// must remain the single signer process: no second signer can contend for the same nonce.
 let executionQueue: Promise<unknown> = Promise.resolve();
 
+/// Reduces an error to a single safe line for public API consumers.
+/// viem revert dumps embed the RPC URL and full call context; a public client gets the cause only.
+/// The untruncated error is still logged server-side for the operator.
+function publicError(err: unknown): string {
+  const raw = err instanceof Error ? (err.message ?? "") : String(err);
+  const firstLine = raw.split(String.fromCharCode(10))[0].trim();
+
+  // Map known contract reverts to plain language.
+  if (raw.includes("InsufficientBalance") || raw.includes("0xf4d678b8")) {
+    return "AgentWallet has insufficient balance to pay the provider invoice.";
+  }
+  if (raw.includes("AmountExceedsMaxPayment") || raw.includes("0x15718f2e")) {
+    return "Payment amount exceeds the AgentWallet per-payment cap.";
+  }
+  if (raw.includes("NotAuthorizedAgent") || raw.includes("0x50699b39")) {
+    return "Caller is not the authorized agent for this AgentWallet.";
+  }
+  if (raw.includes("InvalidSignature")) {
+    return "AgentEscrow rejected the settlement signature.";
+  }
+  if (raw.includes("TaskAlreadySettled")) {
+    return "This task has already been settled.";
+  }
+
+  // Never echo anything that could carry an RPC endpoint or credential material.
+  const scrubbed = firstLine.replace(/https?:\/\/\S+/g, "[endpoint]").replace(/0x[0-9a-fA-F]{64,}/g, "[hex]");
+  return scrubbed.slice(0, 200) || "Execution failed.";
+}
+
 function touch(run: RunRecord, stage: string, detail?: Record<string, unknown>) {
   run.stage = stage;
   run.updatedAt = new Date().toISOString();
@@ -211,7 +240,8 @@ app.get("/health", async (_req, res) => {
       isMock: false,
     });
   } catch (err) {
-    return res.status(503).json({ status: "degraded", error: (err as Error).message, isMock: false });
+    console.error("[health] RPC check failed:", err);
+    return res.status(503).json({ status: "degraded", error: publicError(err), isMock: false });
   }
 });
 
@@ -266,7 +296,9 @@ app.post("/run", (req, res) => {
       await execute(run, { reward, spendingLimit, taskId: body.taskId as `0x${string}` | undefined });
     } catch (err) {
       run.status = "failed";
-      run.error = (err as Error).message;
+      // Full detail to the operator's console; a sanitized single line to API clients.
+      console.error(`[run ${run.runId}] execution failed:`, err);
+      run.error = publicError(err);
       touch(run, "failed", { reason: run.error });
     }
   });

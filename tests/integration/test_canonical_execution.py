@@ -297,3 +297,68 @@ def test_system_status_reports_mode(client):
     assert "use_mock_payments" in body
     assert "agent_service" in body
     assert body["chain_id"] == 10143
+
+
+# --- Phase 6C production hardening -----------------------------------------------
+
+
+def test_production_refuses_insecure_configuration():
+    """Production must reject default JWT, wildcard CORS, and localhost SSRF relaxation."""
+    from app.config.settings import Settings, DEFAULT_DEV_JWT_SECRET
+
+    # Default JWT secret
+    with pytest.raises(Exception):
+        Settings(environment="production", jwt_secret=DEFAULT_DEV_JWT_SECRET)
+
+    # Wildcard CORS
+    with pytest.raises(Exception):
+        Settings(environment="production", jwt_secret="a-real-secret", cors_allow_origins=["*"])
+
+    # SSRF relaxation left on
+    with pytest.raises(Exception):
+        Settings(
+            environment="production",
+            jwt_secret="a-real-secret",
+            cors_allow_origins=["https://app.example"],
+            allow_local_provider=True,
+        )
+
+
+def test_production_forces_debug_off():
+    """Stack traces must never reach a public client, even if DEBUG=true is set."""
+    from app.config.settings import Settings
+
+    cfg = Settings(
+        environment="production",
+        jwt_secret="a-real-secret",
+        cors_allow_origins=["https://app.example"],
+        allow_local_provider=False,
+        debug=True,
+    )
+    assert cfg.debug is False
+
+
+def test_debug_defaults_off():
+    from app.config.settings import Settings
+
+    assert Settings().debug is False
+
+
+def test_provider_address_is_separate_from_agent_and_verifier():
+    """
+    The 0.01 MON service payment must leave the agent's control.
+
+    A provider address equal to the agent or verifier makes the payment a self-transfer, which
+    would be economically meaningless even though the PaymentSettled event is real.
+    """
+    import os
+    import re
+
+    env_example = open("agents/.env.example", encoding="utf-8").read()
+    match = re.search(r"^PROVIDER_ADDRESS=(0x[0-9a-fA-F]{40})", env_example, re.M)
+    assert match, "agents/.env.example must document a concrete PROVIDER_ADDRESS"
+
+    provider = match.group(1).lower()
+    # The deployed AgentWallet.agent() / AgentEscrow.trustedVerifier() for this demo.
+    economic_signer = "0x4c7c4d8155fed9b9f09c6619d98773acca881305"
+    assert provider != economic_signer, "provider EOA must differ from the agent/verifier identity"

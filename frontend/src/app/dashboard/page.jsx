@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAccount, useConnect, useDisconnect, useReadContract, useBalance } from "wagmi";
 import { formatEther } from "viem";
 import { monadTestnet, explorerAddressUrl, explorerTxUrl } from "../../lib/chain";
-import { AGENT_WALLET_ADDRESS, AGENT_ESCROW_ADDRESS, agentWalletAbi, agentEscrowAbi } from "../../lib/contracts";
+import { AGENT_WALLET_ADDRESS, AGENT_ESCROW_ADDRESS, PROVIDER_ADDRESS, agentWalletAbi, agentEscrowAbi } from "../../lib/contracts";
 import { submitTask, listTasks, buildLifecycle, isRealTxHash, getSystemStatus } from "../../lib/api";
 
 const DEMO_TASK_ID =
@@ -372,6 +372,85 @@ function FailureDemoSection() {
 /// Live execution panel: the PRIMARY state of the dashboard.
 /// Submits a task to FastAPI, which orchestrates the canonical TypeScript agent service.
 /// The DEMO_* constants below are only a fallback for when no live run has been performed yet.
+
+/// Makes the four distinct economic identities explicit.
+/// The connected browser wallet is a viewer identity only - it never signs a provider payment
+/// or a settlement. Those are performed by the agent service's own key.
+function IdentityPanel() {
+  const { address, isConnected } = useAccount();
+  const { data: agent } = useReadContract({
+    address: AGENT_WALLET_ADDRESS,
+    abi: agentWalletAbi,
+    functionName: "agent",
+    chainId: monadTestnet.id,
+  });
+  const { data: trustedVerifier } = useReadContract({
+    address: AGENT_ESCROW_ADDRESS,
+    abi: agentEscrowAbi,
+    functionName: "trustedVerifier",
+    chainId: monadTestnet.id,
+  });
+
+  const roles = [
+    {
+      name: "Your browser wallet",
+      value: isConnected ? truncate(address, 8, 6) : "not connected",
+      role: "Identity and read-only viewing. Signs nothing in this demo.",
+      link: isConnected ? explorerAddressUrl(address) : null,
+    },
+    {
+      name: "AgentWallet",
+      value: truncate(AGENT_WALLET_ADDRESS, 8, 6),
+      role: "Holds the agent's spending capital. Pays providers under an immutable per-payment cap.",
+      link: explorerAddressUrl(AGENT_WALLET_ADDRESS),
+    },
+    {
+      name: "Authorized agent",
+      value: agent ? truncate(agent, 8, 6) : "…",
+      role: "The only key AgentWallet accepts. Lives in the agent service, never in the browser.",
+      link: agent ? explorerAddressUrl(agent) : null,
+    },
+    {
+      name: "Trusted verifier",
+      value: trustedVerifier ? truncate(trustedVerifier, 8, 6) : "…",
+      role: "Signs result digests. AgentEscrow releases funds only for this signature.",
+      link: trustedVerifier ? explorerAddressUrl(trustedVerifier) : null,
+    },
+    {
+      name: "Provider",
+      value: truncate(PROVIDER_ADDRESS, 8, 6),
+      role: "Separate EOA that receives the 0.01 MON service payment.",
+      link: explorerAddressUrl(PROVIDER_ADDRESS),
+    },
+  ];
+
+  return (
+    <Card title="Who Holds What" icon="badge">
+      <p className="font-body-sm text-body-sm text-secondary mb-space-md">
+        Connecting a wallet does not make it the spending wallet. The agent pays and earns with its
+        own key, held server-side by the agent service.
+      </p>
+      <div className="flex flex-col gap-space-xs">
+        {roles.map((r) => (
+          <div key={r.name} className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-space-md py-2 border-b border-surface-container last:border-0">
+            <div className="sm:w-44 shrink-0">
+              <span className="font-label-sm text-label-sm text-on-surface">{r.name}</span>
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              {r.link ? (
+                <ExplorerLink href={r.link}>{r.value}</ExplorerLink>
+              ) : (
+                <span className="font-mono text-body-sm text-secondary">{r.value}</span>
+              )}
+              <span className="font-body-sm text-body-sm text-secondary">{r.role}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function LiveExecutionPanel() {
   const [record, setRecord] = useState(null);
   const [running, setRunning] = useState(false);
@@ -608,6 +687,7 @@ export default function Dashboard() {
         </div>
 
         <LiveChainPanel />
+        <IdentityPanel />
         <FailureDemoSection />
 
         <footer className="text-center py-space-lg">

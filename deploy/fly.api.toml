@@ -1,0 +1,46 @@
+# FastAPI + LangGraph orchestration layer.
+#
+# Holds NO economic private key. It dispatches to the canonical agent service over HTTP.
+# Safe to run multiple replicas (it signs nothing), though one is plenty for the demo.
+#
+# Deploy: fly deploy -c deploy/fly.api.toml
+
+app = "agentproof-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"
+  USE_MOCK_PAYMENTS = "false"
+  ALLOW_LOCAL_PROVIDER = "false"
+  DEBUG = "false"
+  PORT = "8000"
+  CHAIN_ID = "10143"
+  MONAD_RPC = "https://testnet-rpc.monad.xyz"
+  AGENT_WALLET_ADDRESS = "0x7263058B4040ae7410340f63d292152DE8d867FA"
+  ESCROW_ADDRESS = "0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1"
+  TASK_REWARD_MON = "0.05"
+  TASK_SPENDING_LIMIT_MON = "0.02"
+  WALLET_MAX_PAYMENT_MON = "0.02"
+  # Set per-deployment (see deploy/README.md):
+  #   fly secrets set JWT_SECRET=... AGENT_SERVICE_URL=... CORS_ALLOW_ORIGINS=... -a agentproof-api
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

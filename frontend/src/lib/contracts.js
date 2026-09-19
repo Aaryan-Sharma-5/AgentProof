@@ -4,6 +4,12 @@ export const AGENT_WALLET_ADDRESS =
 export const AGENT_ESCROW_ADDRESS =
   process.env.NEXT_PUBLIC_ESCROW_ADDRESS || "0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1";
 
+
+/// The provider's payout EOA. Separate from the agent and the verifier, so the 0.01 MON service
+/// payment is a genuine external transfer rather than a self-payment.
+export const PROVIDER_ADDRESS =
+  process.env.NEXT_PUBLIC_PROVIDER_ADDRESS || "0x322BE7De3f74e57B87F24Bb68199e89d97652697";
+
 export const agentWalletAbi = [
   {
     type: "function",

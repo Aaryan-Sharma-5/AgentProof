@@ -1,0 +1,34 @@
+# HTTP 402 provider service.
+#
+# Holds NO private key. It only reads PaymentSettled events from AgentWallet and compares them
+# against its own public payout address, so it can be scaled freely.
+#
+# Deploy: fly deploy -c deploy/fly.provider.toml
+
+app = "agentproof-provider"
+primary_region = "sin"
+
+[build]
+  dockerfile = "../agents/Dockerfile"
+
+[env]
+  PROVIDER_PORT = "4000"
+  PROVIDER_INVOICE_MON = "0.01"
+  MONAD_RPC = "https://testnet-rpc.monad.xyz"
+  AGENT_WALLET_ADDRESS = "0x7263058B4040ae7410340f63d292152DE8d867FA"
+  # Separate provider EOA - receive-only, its private key is NOT needed at runtime.
+  PROVIDER_ADDRESS = "0x322BE7De3f74e57B87F24Bb68199e89d97652697"
+
+[processes]
+  app = "npx tsx provider/server.ts"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

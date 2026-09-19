@@ -34,7 +34,9 @@ class Settings(BaseModel):
     # App
     app_name: str = "AgentFlow Core"
     environment: str = Field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
-    debug: bool = Field(default_factory=lambda: os.getenv("DEBUG", "true").lower() in ("true", "1", "yes"))
+    # Debug echoes stack traces to HTTP clients. Off unless explicitly enabled, and forced off in
+    # production by model_post_init below.
+    debug: bool = Field(default_factory=lambda: os.getenv("DEBUG", "false").lower() in ("true", "1", "yes"))
     api_v1_prefix: str = "/v1"
 
     # LLM Settings
@@ -130,6 +132,12 @@ class Settings(BaseModel):
                 raise ValueError(
                     "CORS_ALLOW_ORIGINS must list explicit origins (never '*') outside development."
                 )
+            if self.allow_local_provider:
+                raise ValueError(
+                    "ALLOW_LOCAL_PROVIDER must be false outside development (SSRF hardening)."
+                )
+            # Stack traces and internal state must never reach a public client.
+            object.__setattr__(self, "debug", False)
 
 
 # Global singleton settings
