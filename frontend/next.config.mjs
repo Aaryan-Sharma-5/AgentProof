@@ -5,6 +5,18 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  webpack: (config) => {
+    // wagmi's connector barrel pulls in an optional Coinbase Smart Wallet
+    // connector with unresolvable @x402/* peer deps. We only use the
+    // `injected` connector, so these modules are never reached at runtime.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@x402/core/client": false,
+      "@x402/svm/exact/client": false,
+      "@x402/evm": false,
+    };
+    return config;
+  },
 };
 
 export default nextConfig;
