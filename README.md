@@ -919,7 +919,7 @@ AgentProof was architected, engineered, and shipped for **Monad Blitz Mumbai V4*
   - Escrow Funding: [`0x2852...240c`](https://testnet.monadscan.com/tx/0x28524c577fdb26ae291e56da7e3ef7a4d1f981572aa240b18a7763350b7f240c)
   - Provider Micropayment: [`0x3777...ef38`](https://testnet.monadscan.com/tx/0x37772639ffcc4144d35757634bd26a9a5348ab38eeb3d9212e7186813368ef38)
   - Bounty Settlement: [`0xefc3...e0a8`](https://testnet.monadscan.com/tx/0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8)
-- [x] **Live Hosted Web3 dApp**: [agentproof.vercel.app](https://agentproof.vercel.app)
+- [x] **Live Hosted Web3 dApp**: [agent-proof-gamma.vercel.app](https://agent-proof-gamma.vercel.app/)
 - [x] **3D World Preloader Experience**: [agentproof.vercel.app/preloader](https://agentproof.vercel.app/preloader)
 - [x] **Official Brand System & Vector Assets**: [agentproof.vercel.app/logo](https://agentproof.vercel.app/logo)
 - [x] **100% Hermetic Automated Tests (80/80)**: Passing via `python run_tests.py`
