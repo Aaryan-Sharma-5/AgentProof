@@ -21,6 +21,12 @@
 
 **[🌐 Live Web3 dApp](https://agent-proof-gamma.vercel.app)** • **[💻 GitHub Repository](https://github.com/Aaryan-Sharma-5/AgentProof)** • **[🔍 MonadScan Explorer](https://testnet.monadscan.com)** • **[🛡️ Brand Identity](https://agent-proof-gamma.vercel.app/logo)**
 
+(https://www.linkedin.com/feed/update/urn:li:activity:7506992765529120769/)
+(https://x.com/Aaryan1225/status/2101314525815623959)
+(https://www.youtube.com/watch?v=h1uwXr1-5OM)
+(https://www.youtube.com/watch?v=ng03xjjmAyg)
+
+
 </div>
 
 ---
