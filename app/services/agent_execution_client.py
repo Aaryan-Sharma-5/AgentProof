@@ -31,9 +31,17 @@ class AgentExecutionClient:
         self,
         base_url: Optional[str] = None,
         timeout_seconds: Optional[float] = None,
+        token: Optional[str] = None,
     ):
         self.base_url = (base_url or settings.agent_service_url).rstrip("/")
         self.timeout_seconds = timeout_seconds or settings.agent_service_timeout_seconds
+        # Shared bearer token for the agent service's mutating route. Needed when that service is
+        # publicly reachable (free-tier hosting offers no private networking). This is an access
+        # credential, not an economic key: it authorizes asking the signer to run, nothing more.
+        self.token = token if token is not None else (settings.agent_service_token or "")
+
+    def _auth_headers(self) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {self.token}"} if self.token else {}
 
     # --- internal transport -------------------------------------------------
 
@@ -43,7 +51,13 @@ class AgentExecutionClient:
             try:
                 import httpx
                 async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                    response = await client.request(method, url, json=json_body)
+                    response = await client.request(
+                        method, url, json=json_body, headers=self._auth_headers() or None
+                    )
+                if response.status_code == 401:
+                    raise AgentServiceError(
+                        "Canonical agent service rejected the request: AGENT_SERVICE_TOKEN is missing or wrong."
+                    )
                 if response.status_code >= 500:
                     raise AgentServiceError(
                         f"Canonical agent service returned {response.status_code} for {path}: {response.text[:300]}"
@@ -51,15 +65,26 @@ class AgentExecutionClient:
                 return response.json()
             except ImportError:
                 import urllib.request
+                import urllib.error
                 import json as _json
                 req = urllib.request.Request(url, method=method)
                 req.add_header("Content-Type", "application/json")
+                for header_name, header_value in self._auth_headers().items():
+                    req.add_header(header_name, header_value)
                 data_bytes = _json.dumps(json_body).encode("utf-8") if json_body else None
                 loop = asyncio.get_event_loop()
                 def _do():
-                    with urllib.request.urlopen(req, data=data_bytes, timeout=self.timeout_seconds) as resp:
-                        return resp.getcode(), resp.read().decode("utf-8")
+                    try:
+                        with urllib.request.urlopen(req, data=data_bytes, timeout=self.timeout_seconds) as resp:
+                            return resp.getcode(), resp.read().decode("utf-8")
+                    except urllib.error.HTTPError as http_err:
+                        # urlopen raises on 4xx; surface the status so 401 is reported precisely.
+                        return http_err.code, http_err.read().decode("utf-8", errors="replace")
                 code, text = await loop.run_in_executor(None, _do)
+                if code == 401:
+                    raise AgentServiceError(
+                        "Canonical agent service rejected the request: AGENT_SERVICE_TOKEN is missing or wrong."
+                    )
                 if code >= 500:
                     raise AgentServiceError(f"Canonical agent service returned {code} for {path}: {text[:300]}")
                 return _json.loads(text)

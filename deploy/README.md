@@ -8,15 +8,29 @@ deploy itself is a manual process; follow the steps below in order.
 
 ```
 Browser
-  → Vercel    Next.js frontend                 no secrets
-  → Render    FastAPI + LangGraph  (web)       no economic keys, public
-  → Render    Agent service        (pserv)     AGENT_KEY + VERIFIER_KEY, PRIVATE, 1 instance
-  → Render    HTTP 402 provider    (web)       no keys, public, read-only
-  → Monad Testnet 10143                        AgentWallet + AgentEscrow
+  → Vercel    Next.js frontend              no secrets
+  → Render    FastAPI + LangGraph  (web)    no economic keys, public
+  → Render    Agent service        (web)    AGENT_KEY + VERIFIER_KEY, token-gated, 1 instance
+  → Render    HTTP 402 provider    (web)    no keys, public, read-only
+  → Monad Testnet 10143                     AgentWallet + AgentEscrow
 ```
 
-All Render services use the **Singapore** region. FastAPI and the agent service must share a region
-so private networking works between them.
+All three Render services run on the **free** plan in the **Singapore** region.
+
+> [!IMPORTANT]
+> **Why the signer is a public web service.** Render private services (`pserv`) have no free
+> instance type, and free web services cannot receive private network traffic. Private networking
+> is therefore unavailable without a paid plan. The agent service runs as a free *web* service and
+> protects its one mutating route with a shared bearer token instead of network isolation:
+>
+> - `POST /run` requires `Authorization: Bearer $AGENT_SERVICE_TOKEN` → otherwise **401**, and no
+>   run is created, so an anonymous caller cannot cause any MON to be spent.
+> - `GET /health`, `/run/:id`, `/runs`, `/services` stay open, so the platform health probe works
+>   and anyone can verify real transaction hashes without holding a secret.
+>
+> This is a deliberate downgrade from network isolation, made to avoid a paid plan. On a paid tier
+> the agent service should be a `pserv` reached at `http://agentproof-agent:4100`; the historical
+> config for that is in `deprecated-fly/` and in this file's git history.
 
 > [!WARNING]
 > **The agent service must run as exactly one instance.** It signs `createTask`, `payService` and
@@ -24,9 +38,13 @@ so private networking works between them.
 > race the account nonce and drop transactions. `numInstances: 1` is pinned in `render.yaml` and
 > must never be raised, and autoscaling must stay off. This is an intentional MVP constraint.
 
+> [!NOTE]
+> Free Render services sleep after ~15 minutes idle and take ~50s to wake. Run `npm run warm` from
+> `agents/` a couple of minutes before any demo — see "Demo checklist" at the end of this file.
+
 ## Prerequisites
 
-- A Render account (free tier works; the agent service and API are set to `starter`)
+- A Render account — **no payment method required**; all three services use the free plan
 - A Vercel account — run `vercel login` if the CLI token has expired
 - A funded Monad Testnet agent account (≥ ~1 MON for escrow + gas)
 - `AgentWallet` funded with MON (each run spends 0.01)
@@ -37,8 +55,8 @@ The order matters: each service needs a URL produced by the previous one.
 
 ```
 1. Provider        → produces PROVIDER_URL
-2. Agent service   → consumes PROVIDER_URL, is reached privately by the API
-3. FastAPI         → consumes AGENT_SERVICE_URL (private hostname)
+2. Agent service   → consumes PROVIDER_URL, produces its public URL + AGENT_SERVICE_TOKEN
+3. FastAPI         → consumes AGENT_SERVICE_URL and the same AGENT_SERVICE_TOKEN
 4. Vercel frontend → consumes NEXT_PUBLIC_API_BASE_URL
 5. Back to FastAPI → set CORS_ALLOW_ORIGINS to the Vercel origin
 ```
@@ -86,16 +104,23 @@ curl -i https://agentproof-provider.onrender.com/pricing # 402 + invoice
 
 ---
 
-## Step 2 — Agent service (Render **Private** Service)
+## Step 2 — Agent service (Render Web Service, token-gated)
+
+First generate the shared token — you will paste the same value here and on FastAPI:
+
+```bash
+openssl rand -hex 32
+```
 
 | Setting | Value |
 |---|---|
-| Type | **Private Service** (`pserv`) — not a web service |
+| Type | Web Service (free plan) |
 | Runtime | Docker |
 | Dockerfile path | `./agents/Dockerfile` |
 | Docker context | `./agents` |
 | Docker command | `npx tsx service.ts` |
-| Region | Singapore (same as FastAPI) |
+| Region | Singapore |
+| Health check path | `/health` |
 | Instances | **1 — never raise this** |
 
 Environment:
@@ -115,14 +140,28 @@ PROVIDER_URL=https://<provider-from-step-1>.onrender.com/pricing
 Secrets — enter in the Render dashboard, never in a file:
 
 ```
-AGENT_KEY       must match AgentWallet.agent()
-VERIFIER_KEY    must match AgentEscrow.trustedVerifier()
+AGENT_SERVICE_TOKEN   the value you generated above (same one goes on FastAPI)
+AGENT_KEY             must match AgentWallet.agent()
+VERIFIER_KEY          must match AgentEscrow.trustedVerifier()
 ```
 
-This is the **only** service that receives either key.
+This is the **only** service that receives either economic key.
 
-It stays private deliberately: the API reaches it over Render's internal network, so it is never
-exposed to the internet. Its internal address is `http://agentproof-agent:4100`.
+Verify the gate is active before continuing:
+
+```bash
+# health is open, and reports that the gate is on
+curl https://agentproof-agent.onrender.com/health          # authRequired: true
+
+# an anonymous run attempt must be refused
+curl -s -o /dev/null -w "%{http_code}
+" -X POST   https://agentproof-agent.onrender.com/run   -H "Content-Type: application/json" -d '{}'              # 401
+```
+
+If `authRequired` is `false`, `AGENT_SERVICE_TOKEN` was not applied — fix that before deploying
+FastAPI, because the run endpoint would be callable by anyone.
+
+**Copy the service URL and the token.** Both go into step 3.
 
 ---
 
@@ -151,16 +190,19 @@ ESCROW_ADDRESS=0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1
 TASK_REWARD_MON=0.05
 TASK_SPENDING_LIMIT_MON=0.02
 WALLET_MAX_PAYMENT_MON=0.02
-AGENT_SERVICE_URL=http://agentproof-agent:4100
+AGENT_SERVICE_URL=https://<agent-service-from-step-2>.onrender.com
+AGENT_SERVICE_TOKEN=<the same token you set in step 2>
 CORS_ALLOW_ORIGINS=<set in step 5>
 JWT_SECRET=<generate: openssl rand -hex 32>
 ```
 
-`AGENT_SERVICE_URL` is plain `http://` on purpose — Render private networking does not use TLS and
-never leaves their network. This service receives **no** economic private key.
+`AGENT_SERVICE_TOKEN` must match the agent service exactly, or every dispatch fails with
+`AGENT_SERVICE_TOKEN is missing or wrong`. This service receives **no** economic private key — the
+token only authorizes it to *ask* the signer to run.
 
 With `ENVIRONMENT=production` the app refuses to boot if `JWT_SECRET` is the development default,
-`CORS_ALLOW_ORIGINS` contains `*`, or `ALLOW_LOCAL_PROVIDER` is true, and it forces `debug=false`.
+`CORS_ALLOW_ORIGINS` contains `*`, `ALLOW_LOCAL_PROVIDER` is true, or `AGENT_SERVICE_TOKEN` is
+missing — and it forces `debug=false`.
 
 Verify:
 
@@ -249,8 +291,14 @@ hashes. Verify each on <https://testnet.monadscan.com>, and confirm the provider
 |---|---|---|
 | `AGENT_KEY` | agent service only | api, provider, Vercel, git |
 | `VERIFIER_KEY` | agent service only | api, provider, Vercel, git |
+| `AGENT_SERVICE_TOKEN` | agent service **and** FastAPI (same value) | Vercel, git |
 | `JWT_SECRET` | FastAPI only | Vercel, git |
 | provider private key | **nowhere** — receive-only address | everywhere |
+
+`AGENT_SERVICE_TOKEN` is an access credential, not an economic key: it authorizes asking the signer
+to run the canonical task. Even if it leaked, an attacker could only trigger that one task, bounded
+by `AgentWallet`'s immutable 0.02 MON per-payment cap and the wallet's balance. Rotate it by setting
+a new value on both services.
 
 ## Rollback
 
@@ -261,3 +309,54 @@ Vercel: **Deployments** → *Promote to Production* on a previous build.
 
 `deploy/deprecated-fly/` holds unused Fly.io configs from an earlier plan. They are **not** the
 deployment path and were never used for a live deployment.
+
+---
+
+## Demo checklist
+
+Free instances sleep after ~15 minutes idle. Run through this **2–3 minutes before** demoing.
+
+**1. Wake everything** (takes up to ~2 minutes on a cold start):
+
+```bash
+cd agents
+PROVIDER_URL=https://agentproof-provider.onrender.com/pricing AGENT_SERVICE_URL=https://agentproof-agent.onrender.com API_URL=https://agentproof-api.onrender.com npm run warm
+```
+
+Expect `All services are awake. Safe to demo.`
+
+**2. Confirm live mode and connectivity:**
+
+```bash
+curl https://agentproof-api.onrender.com/v1/system/status
+```
+
+Check: `use_mock_payments: false`, `agent_service.reachable: true`, `chain_id: 10143`.
+
+**3. Confirm AgentWallet can pay.** Each run spends 0.01 MON:
+
+```bash
+cast balance 0x7263058B4040ae7410340f63d292152DE8d867FA --rpc-url https://testnet-rpc.monad.xyz
+```
+
+Top up with `deposit()` if it is low. The agent account also needs MON for escrow (0.05/run) + gas.
+
+**4. Open the dashboard** and leave it loaded, so its first API call has already happened.
+
+**5. Run the canonical task** from the UI, or:
+
+```bash
+curl -X POST https://agentproof-api.onrender.com/v1/agent-requests   -H "Content-Type: application/json"   -d '{"message":"Research three competitors and produce a pricing comparison."}'
+```
+
+A full run takes ~10 seconds once the services are warm.
+
+### If something fails mid-demo
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Request hangs ~50s then succeeds | Cold start | Re-run `npm run warm` |
+| `AGENT_SERVICE_TOKEN is missing or wrong` | Token mismatch between the two services | Re-paste the same value on both, redeploy |
+| `AgentWallet has insufficient balance` | Wallet drained | `deposit()` more MON |
+| CORS error in the browser | `CORS_ALLOW_ORIGINS` wrong | Set it to the exact Vercel origin, redeploy |
+| `agent_service.reachable: false` | Agent service asleep or failed | Check its Render logs, re-warm |

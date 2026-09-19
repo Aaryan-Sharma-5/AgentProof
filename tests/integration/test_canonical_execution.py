@@ -363,3 +363,49 @@ def test_provider_address_is_separate_from_agent_and_verifier():
     # The deployed AgentWallet.agent() / AgentEscrow.trustedVerifier() for this demo.
     economic_signer = "0x4c7c4d8155fed9b9f09c6619d98773acca881305"
     assert provider != economic_signer, "provider EOA must differ from the agent/verifier identity"
+
+
+# --- Phase 6C.1: public agent service is token-gated --------------------------------
+
+
+def test_production_requires_agent_service_token():
+    """
+    The agent service is publicly reachable on free-tier hosting, so its run endpoint must never
+    be callable anonymously. Production must refuse to boot without the shared token.
+    """
+    from app.config.settings import Settings
+
+    base = dict(
+        environment="production",
+        jwt_secret="a-real-secret",
+        cors_allow_origins=["https://app.example"],
+        allow_local_provider=False,
+        use_mock_payments=False,
+    )
+
+    with pytest.raises(Exception):
+        Settings(**base, agent_service_token=None)
+
+    configured = Settings(**base, agent_service_token="a-real-token")
+    assert configured.agent_service_token == "a-real-token"
+
+
+def test_client_sends_bearer_token_only_when_configured():
+    """The token travels as an Authorization header, and is omitted entirely when unset."""
+    with_token = AgentExecutionClient(base_url="http://agent:4100", token="secret-token")
+    assert with_token._auth_headers() == {"Authorization": "Bearer secret-token"}
+
+    without_token = AgentExecutionClient(base_url="http://agent:4100", token="")
+    assert without_token._auth_headers() == {}
+
+
+def test_agent_service_token_is_not_an_economic_key():
+    """
+    The token authorizes *asking* the signer to run. It must never be used to sign, and the client
+    must still hold no key material of any kind.
+    """
+    import app.services.agent_execution_client as client_mod
+
+    source = open(client_mod.__file__, encoding="utf-8").read()
+    for forbidden in ("settleTask", "sign_message", "signMessage", "eth_account", "from_key", "privateKey"):
+        assert forbidden not in source, f"agent_execution_client must not reference {forbidden}"

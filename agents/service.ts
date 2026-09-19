@@ -20,6 +20,11 @@ if (!process.env.ESCROW_ADDRESS) throw new Error("ESCROW_ADDRESS is required");
 if (!process.env.AGENT_KEY) throw new Error("AGENT_KEY is required");
 if (!process.env.AGENT_WALLET_ADDRESS) throw new Error("AGENT_WALLET_ADDRESS is required");
 
+// Bearer token guarding the one mutating route. Required when the service is reachable from the
+// public internet (the free-tier deployment), because network isolation is not available there.
+// Unset means "no gate", which is correct for local development where nothing is exposed.
+const AGENT_SERVICE_TOKEN = process.env.AGENT_SERVICE_TOKEN ?? "";
+
 const DEFAULT_REWARD = process.env.TASK_REWARD_MON ?? "0.05";
 const DEFAULT_SPENDING_LIMIT = process.env.TASK_SPENDING_LIMIT_MON ?? "0.02";
 
@@ -88,6 +93,33 @@ const runs = new Map<string, RunRecord>();
 /// account nonce, so every run is serialized through this promise chain. This is why the service
 /// must remain the single signer process: no second signer can contend for the same nonce.
 let executionQueue: Promise<unknown> = Promise.resolve();
+
+/// Constant-time string compare. A plain === leaks the token one byte at a time to an attacker
+/// who can measure response latency.
+function tokensMatch(provided: string, expected: string): boolean {
+  if (provided.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < provided.length; i++) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/// Guards the mutating route. Spending MON must never be triggerable by an anonymous caller.
+/// Read-only routes stay open so the dashboard can poll execution state and anyone can verify the
+/// real transaction hashes; /health stays open for the platform's health probe.
+function requireToken(req: express.Request, res: express.Response): boolean {
+  if (!AGENT_SERVICE_TOKEN) return true;
+
+  const header = req.header("Authorization") ?? "";
+  const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
+
+  if (!tokensMatch(provided, AGENT_SERVICE_TOKEN)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  return true;
+}
 
 /// Reduces an error to a single safe line for public API consumers.
 /// viem revert dumps embed the RPC URL and full call context; a public client gets the cause only.
@@ -242,6 +274,7 @@ app.get("/health", async (_req, res) => {
       services: listServices(),
       activeRuns: runs.size,
       isMock: false,
+      authRequired: Boolean(AGENT_SERVICE_TOKEN),
     });
   } catch (err) {
     console.error("[health] RPC check failed:", err);
@@ -252,6 +285,8 @@ app.get("/health", async (_req, res) => {
 app.get("/services", (_req, res) => res.status(200).json({ services: listServices() }));
 
 app.post("/run", (req, res) => {
+  if (!requireToken(req, res)) return;
+
   const body = (req.body ?? {}) as {
     serviceType?: string;
     rewardMon?: string;
@@ -324,4 +359,9 @@ app.listen(PORT, HOST, () => {
   console.log(`  AgentWallet  ${walletAddress}`);
   console.log(`  AgentEscrow  ${escrowAddress}`);
   console.log(`  reward ${DEFAULT_REWARD} MON | task cap ${DEFAULT_SPENDING_LIMIT} MON`);
+  console.log(
+    AGENT_SERVICE_TOKEN
+      ? "  POST /run requires a bearer token"
+      : "  WARNING: AGENT_SERVICE_TOKEN is unset - POST /run is UNAUTHENTICATED. Never deploy this publicly."
+  );
 });

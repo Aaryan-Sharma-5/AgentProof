@@ -10,6 +10,22 @@ import assert from "node:assert/strict";
 import { findService, listServices, CANONICAL_SERVICE_TYPE } from "../marketplace/registry.js";
 
 const BASE = process.env.AGENT_SERVICE_TEST_URL ?? "http://localhost:4100";
+const TEST_TOKEN = process.env.AGENT_SERVICE_TOKEN ?? "";
+
+/// POST /run is token-gated when the service runs with AGENT_SERVICE_TOKEN set. Tests that
+/// exercise the run endpoint must present it, or they exercise the auth gate instead.
+function runHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (TEST_TOKEN) headers.Authorization = `Bearer ${TEST_TOKEN}`;
+  return headers;
+}
+
+/// True when the service enforces the token but this process does not have it, in which case
+/// run-endpoint tests cannot run meaningfully.
+async function runEndpointUnavailable(): Promise<boolean> {
+  const health = await (await fetch(`${BASE}/health`)).json();
+  return Boolean(health.authRequired) && !TEST_TOKEN;
+}
 
 async function serviceIsUp(): Promise<boolean> {
   try {
@@ -63,10 +79,12 @@ test("GET /run/:id returns 404 for an unknown run", async (t) => {
 test("POST /run rejects a task cap above the immutable on-chain per-payment cap", async (t) => {
   if (!(await serviceIsUp())) return t.skip("agent service not running");
 
+  if (await runEndpointUnavailable()) return t.skip("token required but not available to tests");
+
   const runId = `cap-guard-${Date.now()}`;
   const created = await fetch(`${BASE}/run`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: runHeaders(),
     body: JSON.stringify({ requestId: runId, spendingLimitMon: "0.03" }),
   });
   assert.equal(created.status, 202);
@@ -84,9 +102,11 @@ test("POST /run rejects a task cap above the immutable on-chain per-payment cap"
 test("POST /run rejects a duplicate run id instead of double-spending", async (t) => {
   if (!(await serviceIsUp())) return t.skip("agent service not running");
 
+  if (await runEndpointUnavailable()) return t.skip("token required but not available to tests");
+
   const runId = `dupe-${Date.now()}`;
   const body = JSON.stringify({ requestId: runId, spendingLimitMon: "0.03" });
-  const headers = { "Content-Type": "application/json" };
+  const headers = runHeaders();
 
   const first = await fetch(`${BASE}/run`, { method: "POST", headers, body });
   assert.equal(first.status, 202);
@@ -108,4 +128,73 @@ test("a run record never carries a fabricated transaction hash", async (t) => {
       }
     }
   }
+});
+
+// --- Token gate (Phase 6C.1) ----------------------------------------------------
+// The agent service is publicly reachable on free-tier hosting, so POST /run must reject
+// unauthenticated callers. Read-only routes stay open by design.
+
+test("GET /health is reachable without a token and reports whether the gate is on", async (t) => {
+  if (!(await serviceIsUp())) return t.skip("agent service not running");
+
+  const res = await fetch(`${BASE}/health`);
+  assert.equal(res.status, 200, "health must stay open for the platform health probe");
+
+  const body = await res.json();
+  assert.equal(typeof body.authRequired, "boolean");
+});
+
+test("read-only routes stay open so run state can be inspected without a secret", async (t) => {
+  if (!(await serviceIsUp())) return t.skip("agent service not running");
+
+  for (const path of ["/runs", "/services"]) {
+    const res = await fetch(`${BASE}${path}`);
+    assert.equal(res.status, 200, `${path} must not require a token`);
+  }
+});
+
+test("POST /run without a token is rejected and creates no run", async (t) => {
+  if (!(await serviceIsUp())) return t.skip("agent service not running");
+  const health = await (await fetch(`${BASE}/health`)).json();
+  if (!health.authRequired) return t.skip("service running without AGENT_SERVICE_TOKEN");
+
+  const runId = `unauth-${Date.now()}`;
+  const res = await fetch(`${BASE}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId: runId, spendingLimitMon: "0.03" }),
+  });
+  assert.equal(res.status, 401);
+
+  // Spending MON must be impossible for an anonymous caller: no run may even be recorded.
+  const { runs } = await (await fetch(`${BASE}/runs`)).json();
+  assert.ok(!runs.some((r: any) => r.runId === runId), "no run may be created without a token");
+});
+
+test("POST /run with a wrong token is rejected", async (t) => {
+  if (!(await serviceIsUp())) return t.skip("agent service not running");
+  const health = await (await fetch(`${BASE}/health`)).json();
+  if (!health.authRequired) return t.skip("service running without AGENT_SERVICE_TOKEN");
+
+  const res = await fetch(`${BASE}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer definitely-not-the-token" },
+    body: JSON.stringify({ requestId: `wrongtok-${Date.now()}`, spendingLimitMon: "0.03" }),
+  });
+  assert.equal(res.status, 401);
+});
+
+test("POST /run with the correct token is accepted", async (t) => {
+  if (!(await serviceIsUp())) return t.skip("agent service not running");
+  const health = await (await fetch(`${BASE}/health`)).json();
+  if (!health.authRequired) return t.skip("service running without AGENT_SERVICE_TOKEN");
+  if (!TEST_TOKEN) return t.skip("AGENT_SERVICE_TOKEN not available to the test process");
+
+  // Uses an over-cap limit so the guard fails the run before anything is spent.
+  const res = await fetch(`${BASE}/run`, {
+    method: "POST",
+    headers: runHeaders(),
+    body: JSON.stringify({ requestId: `authok-${Date.now()}`, spendingLimitMon: "0.03" }),
+  });
+  assert.equal(res.status, 202);
 });

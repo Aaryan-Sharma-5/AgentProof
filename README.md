@@ -10,7 +10,6 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent%20Graph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://github.com/langchain-ai/langgraph)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14%20App%20Router-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Three.js](https://img.shields.io/badge/Three.js-3D%20WebGL%20Preloader-000000?style=for-the-badge&logo=three.js&logoColor=white)](https://agentproof.vercel.app/preloader)
 [![Tests](https://img.shields.io/badge/Tests-80%2F80%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](./run_tests.py)
 [![Monad Blitz](https://img.shields.io/badge/Hackathon-Monad%20Blitz%20Mumbai%20V4-FF007A?style=for-the-badge)](https://monad.xyz)
 
@@ -20,7 +19,7 @@
 
 <br/>
 
-**[🌐 Live Web3 dApp](https://agentproof.vercel.app)** • **[💻 GitHub Repository](https://github.com/Aaryan-Sharma-5/AgentProof)** • **[🔍 MonadScan Explorer](https://testnet.monadscan.com)** • **[🌌 3D World Preloader](https://agentproof.vercel.app/preloader)** • **[🛡️ Brand Identity](https://agentproof.vercel.app/logo)**
+**[🌐 Live Web3 dApp](https://agent-proof-gamma.vercel.app)** • **[💻 GitHub Repository](https://github.com/Aaryan-Sharma-5/AgentProof)** • **[🔍 MonadScan Explorer](https://testnet.monadscan.com)** • **[🛡️ Brand Identity](https://agent-proof-gamma.vercel.app/logo)**
 
 </div>
 
@@ -38,7 +37,7 @@
 8. [Smart Contract Specifications](#8-smart-contract-specifications)
 9. [Architecture Topologies & Sequence Flows](#9-architecture-topologies--sequence-flows)
 10. [Enterprise Security & Zero-Trust Threat Model](#10-enterprise-security--zero-trust-threat-model)
-11. [Frontend Experience, Brand System & 3D Preloader](#11-frontend-experience-brand-system--3d-preloader)
+11. [Frontend Experience & Brand System](#11-frontend-experience--brand-system)
 12. [REST API Reference (FastAPI v1)](#12-rest-api-reference-fastapi-v1)
 13. [Local Development & Operations Runbook](#13-local-development--operations-runbook)
 14. [Deterministic Failure Mode Demonstrations](#14-deterministic-failure-mode-demonstrations)
@@ -128,11 +127,10 @@ AgentProof reconciles this trilemma by decoupling spending controls from earning
 
 | Service | Destination | Description |
 |---|---|---|
-| **Live Web3 Application** | **[agentproof.vercel.app](https://agentproof.vercel.app)** | Production Next.js 14 dApp on Monad Testnet |
+| **Live Web3 Application** | **[agent-proof-gamma.vercel.app](https://agent-proof-gamma.vercel.app)** | Production Next.js 14 dApp on Monad Testnet |
 | **GitHub Repository** | **[github.com/Aaryan-Sharma-5/AgentProof](https://github.com/Aaryan-Sharma-5/AgentProof)** | Open-source contracts, multi-agent engine, and test suites |
 | **Monad Testnet Explorer** | **[testnet.monadscan.com](https://testnet.monadscan.com)** | Monad Testnet Block Explorer (Chain ID: `10143`) |
-| **3D Parallel World Preloader** | **[agentproof.vercel.app/preloader](https://agentproof.vercel.app/preloader)** | Three.js WebGL parallel world immersion & HUD |
-| **Official Brand System** | **[agentproof.vercel.app/logo](https://agentproof.vercel.app/logo)** | Brand lockups, SVG assets, and design tokens |
+| **Official Brand System** | **[agent-proof-gamma.vercel.app/logo](https://agent-proof-gamma.vercel.app/logo)** | Brand lockups, SVG assets, and design tokens |
 
 ---
 
@@ -547,12 +545,12 @@ sequenceDiagram
 
 ---
 
-## 11. 🎨 Frontend Experience, Brand System & 3D Preloader
+## 11. 🎨 Frontend Experience & Brand System
 
 The AgentProof frontend is built on **Next.js 14 (App Router)** with **TailwindCSS**, **Wagmi v2**, and **Viem**:
 
 <div align="center">
-  <img src="https://img.shields.io/badge/UI%20System-Tailwind%20%2B%20Three.js-blueviolet?style=for-the-badge" alt="UI System"/>
+  <img src="https://img.shields.io/badge/UI%20System-Next.js%2014%20%2B%20Tailwind-blueviolet?style=for-the-badge" alt="UI System"/>
 </div>
 
 ### 11.1 Official Production Brand System (`AgentProofLogo.jsx`)
@@ -566,14 +564,7 @@ The AgentProof frontend is built on **Next.js 14 (App Router)** with **TailwindC
   - **Cyan Verifier (`#00F2FE`)**: Zero-knowledge proof validation, evaluator telemetry.
   - **Quantum Void (`#070614`)**: Deep space cyberpunk backdrop.
 
-### 11.2 3D Parallel World Preloader (`ThreePreloader.jsx`)
-- **3D Quantum Proof Core**: Nested wireframe icosahedrons surrounding a faceted octahedron nucleus with inner luminescence.
-- **3 Tilted Planetary Orbital Rings**: Multi-agent orbital pathways with revolving satellites.
-- **Parallel Dimension Warp Starfield**: 3,500+ dynamic depth particles with real-time Z-axis velocity travel.
-- **Interactive Physics**: Responsive mouse parallax tilt and interactive quantum shockwave physics on click.
-- **Super Fast Tech**: Includes an instant **"Fast Enter / Skip Intro"** button and keyboard shortcuts (`Escape`, `Enter`, `Space`) for immediate navigation.
-
-### 11.3 Complete Application Route Directory
+### 11.2 Complete Application Route Directory
 
 | Route | Path | Description |
 |---|---|---|
@@ -585,7 +576,6 @@ The AgentProof frontend is built on **Next.js 14 (App Router)** with **TailwindC
 | **Connect Wallet** | `/connect` | Web3 identity onboarding and workspace role selector (Creator vs Provider) |
 | **Execution Monitor**| `/monitor` | Real-time agent telemetry stream, block explorer links, and latency counters |
 | **Protocol Docs** | `/protocol` | Technical specifications, smart contract interfaces, and security documentation |
-| **3D Preloader** | `/preloader` | Standalone full-screen 3D parallel world immersion & real-time telemetry HUD |
 | **Brand Identity** | `/logo` | Official vector logos, design tokens, anatomical symbolism, and SVG export |
 
 ---
@@ -902,7 +892,7 @@ AgentProof was architected, engineered, and shipped for **Monad Blitz Mumbai V4*
 | Name | Role | Core Engineering Responsibilities |
 |---|---|---|
 | **HARMAN SAINI** | **System Architect & AI / Backend Lead** | • Multi-Agent Graph Architecture (LangGraph cyclic state machine & supervisor routing)<br/>• FastAPI Enterprise Core Engine & Gateway Interface Protocol abstractions<br/>• Deterministic Policy Engine, Multi-Factor Risk Scoring & 7-Layer Verification Agent<br/>• Security Hardening: Transport SSRF Guards, Concurrency Idempotency & Sanitization |
-| **AARYAN SHARMA** | **Full-Stack & Frontend Lead** | • Next.js 14 Web3 Application Architecture (App Router, Tailwind UI & Wagmi v2)<br/>• 3D Parallel World WebGL Preloader with Three.js & Quantum Physics Interactions<br/>• Official Brand System (`AgentProofLogo`) & Responsive Identity Architecture<br/>• Decentralized Service Marketplace Directory, Task Wizard & Real-Time Telemetry |
+| **AARYAN SHARMA** | **Full-Stack & Frontend Lead** | • Next.js 14 Web3 Application Architecture (App Router, Tailwind UI & Wagmi v2)<br/>• Official Brand System (`AgentProofLogo`) & Responsive Identity Architecture<br/>• Decentralized Service Marketplace Directory, Task Wizard & Real-Time Telemetry |
 | **RAGHAVENDRA SINGH** | **Smart Contract & Blockchain Infra Lead** | • Solidity Smart Contract Engineering (`AgentWallet.sol` & `AgentEscrow.sol`)<br/>• Cryptographic EIP-191 ECDSA `ecrecover` Verification & Anti-Replay Security<br/>• Foundry Test Suites, Gas Profiling & Monad Testnet Contract Deployments<br/>• Contract Verification on MonadScan & On-Chain Event Ingestion Architecture |
 
 </div>
@@ -920,8 +910,7 @@ AgentProof was architected, engineered, and shipped for **Monad Blitz Mumbai V4*
   - Provider Micropayment: [`0x3777...ef38`](https://testnet.monadscan.com/tx/0x37772639ffcc4144d35757634bd26a9a5348ab38eeb3d9212e7186813368ef38)
   - Bounty Settlement: [`0xefc3...e0a8`](https://testnet.monadscan.com/tx/0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8)
 - [x] **Live Hosted Web3 dApp**: [agent-proof-gamma.vercel.app](https://agent-proof-gamma.vercel.app/)
-- [x] **3D World Preloader Experience**: [agentproof.vercel.app/preloader](https://agentproof.vercel.app/preloader)
-- [x] **Official Brand System & Vector Assets**: [agentproof.vercel.app/logo](https://agentproof.vercel.app/logo)
+- [x] **Official Brand System & Vector Assets**: [agent-proof-gamma.vercel.app/logo](https://agent-proof-gamma.vercel.app/logo)
 - [x] **100% Hermetic Automated Tests (80/80)**: Passing via `python run_tests.py`
 
 ---

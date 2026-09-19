@@ -6,8 +6,14 @@
 # Or:          render blueprint launch     (Render CLI)
 #
 # Dependency order is enforced by which URLs you paste where; see deploy/README.md.
-# Secrets (AGENT_KEY, VERIFIER_KEY, JWT_SECRET) are marked sync:false and must be entered in the
-# Render dashboard. They are never committed to this file.
+# Secrets (AGENT_KEY, VERIFIER_KEY, JWT_SECRET, AGENT_SERVICE_TOKEN) are marked sync:false and must
+# be entered in the Render dashboard. They are never committed to this file.
+#
+# FREE-TIER TOPOLOGY: Render private services (pserv) have no free instance type, and free web
+# services cannot receive private network traffic. The agent service therefore runs as a free WEB
+# service reachable over the public internet, and its one mutating route (POST /run) is protected
+# by a shared bearer token (AGENT_SERVICE_TOKEN) instead of network isolation. Read-only routes
+# stay open so the dashboard can poll state and anyone can verify the real transaction hashes.
 
 services:
   # ------------------------------------------------------------------
@@ -37,24 +43,26 @@ services:
         value: "0.01"
 
   # ------------------------------------------------------------------
-  # 2. AGENT SERVICE — PRIVATE service. THE SOLE ECONOMIC SIGNER.
+  # 2. AGENT SERVICE — THE SOLE ECONOMIC SIGNER.
   #
-  #    Reachable only on Render's private network at:
-  #        http://agentproof-agent:4100
+  #    Runs as a free WEB service because Render private services are paid-only. It is therefore
+  #    publicly reachable, and POST /run is gated by AGENT_SERVICE_TOKEN. Without that token the
+  #    endpoint returns 401 and no run is created, so no MON can be spent by an anonymous caller.
   #
   #    CRITICAL: exactly one instance. It signs createTask / payService / settleTask from a
   #    single EOA; a second replica would race the account nonce and drop transactions.
-  #    numInstances is pinned to 1 and must never be raised.
+  #    numInstances is pinned to 1 and must never be raised, and autoscaling must stay off.
   # ------------------------------------------------------------------
-  - type: pserv
+  - type: web
     name: agentproof-agent
     runtime: docker
     dockerfilePath: ./agents/Dockerfile
     dockerContext: ./agents
     dockerCommand: npx tsx service.ts
     region: singapore
-    plan: starter
+    plan: free
     numInstances: 1
+    healthCheckPath: /health
     autoDeploy: false
     envVars:
       - key: PORT
@@ -77,6 +85,10 @@ services:
       - key: PROVIDER_URL
         sync: false
       # SECRETS — enter in the Render dashboard, never in this file.
+      # AGENT_SERVICE_TOKEN gates POST /run. Generate with: openssl rand -hex 32
+      # The same value must be set on agentproof-api.
+      - key: AGENT_SERVICE_TOKEN
+        sync: false
       - key: AGENT_KEY
         sync: false
       - key: VERIFIER_KEY
@@ -84,7 +96,7 @@ services:
 
   # ------------------------------------------------------------------
   # 3. FASTAPI + LANGGRAPH — public web service. Holds NO economic key.
-  #    Orchestrates only; dispatches to the agent service over the private network.
+  #    Orchestrates only; dispatches to the agent service over HTTPS with a bearer token.
   # ------------------------------------------------------------------
   - type: web
     name: agentproof-api
@@ -92,7 +104,7 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     region: singapore
-    plan: starter
+    plan: free
     healthCheckPath: /health
     autoDeploy: false
     envVars:
@@ -118,11 +130,14 @@ services:
         value: "0.02"
       - key: WALLET_MAX_PAYMENT_MON
         value: "0.02"
-      # Private-network address of the agent service. Render private services are reached over
-      # plain HTTP on the internal network; this never leaves Render.
+      # Public HTTPS URL of the agent service. Private networking is unavailable on free plans,
+      # so this call crosses the internet and is authenticated with AGENT_SERVICE_TOKEN.
       - key: AGENT_SERVICE_URL
-        value: http://agentproof-agent:4100
-      # Vercel frontend origin, e.g. https://agentproof.vercel.app — set after the frontend deploys.
+        sync: false
+      # Must match the value set on agentproof-agent.
+      - key: AGENT_SERVICE_TOKEN
+        sync: false
+      # Vercel frontend origin, e.g. https://agent-proof-gamma.vercel.app
       - key: CORS_ALLOW_ORIGINS
         sync: false
       # SECRET — generate with `openssl rand -hex 32`.

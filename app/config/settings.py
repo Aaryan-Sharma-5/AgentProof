@@ -6,8 +6,15 @@ Preserves existing Monad / Web3 environment variables established by Teammate 3.
 
 from __future__ import annotations
 import os
+from pathlib import Path
 from typing import Dict, List, Optional
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+# Must run before any os.getenv() call below. Loads the repo-root .env (this file lives at
+# app/config/settings.py, so the root is two levels up); a real process env var still wins,
+# since load_dotenv() never overrides an already-set variable.
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 
 # Development-only fallback. Refused outside development by Settings.model_post_init below.
@@ -80,6 +87,10 @@ class Settings(BaseModel):
     agent_service_url: str = Field(default_factory=lambda: os.getenv("AGENT_SERVICE_URL", "http://localhost:4100"))
     agent_service_timeout_seconds: float = Field(default_factory=lambda: float(os.getenv("AGENT_SERVICE_TIMEOUT", "30.0")))
     agent_service_max_wait_seconds: float = Field(default_factory=lambda: float(os.getenv("AGENT_SERVICE_MAX_WAIT", "180.0")))
+    # Shared bearer token for the agent service's mutating route. An access credential only - it
+    # never signs anything. Required in production, where the agent service is publicly reachable
+    # because free-tier hosting offers no private networking.
+    agent_service_token: Optional[str] = Field(default_factory=lambda: os.getenv("AGENT_SERVICE_TOKEN"))
 
     # AgentWallet's immutable per-payment cap, mirrored here so the Python policy engine can never
     # approve an invoice the chain is guaranteed to revert. The chain remains the final authority.
@@ -135,6 +146,11 @@ class Settings(BaseModel):
             if self.allow_local_provider:
                 raise ValueError(
                     "ALLOW_LOCAL_PROVIDER must be false outside development (SSRF hardening)."
+                )
+            if not self.use_mock_payments and not self.agent_service_token:
+                raise ValueError(
+                    "AGENT_SERVICE_TOKEN must be set outside development: the agent service holds "
+                    "the economic signer and its run endpoint must not be callable anonymously."
                 )
             # Stack traces and internal state must never reach a public client.
             object.__setattr__(self, "debug", False)
