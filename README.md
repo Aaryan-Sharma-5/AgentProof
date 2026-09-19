@@ -249,6 +249,18 @@ The worker receives the reward automatically.
 
 No manual payment approval is required.
 
+### 8. Service Marketplace
+
+AgentProof includes a built-in **Service Marketplace** where anyone can host and list their APIs and services for autonomous agents to discover and use. 
+
+For example, if you build a localized weather monitoring service:
+1. You register your service and its endpoint in the AgentProof Marketplace.
+2. You define your pricing (e.g., `0.01 MON` per request).
+3. AI Agents can search the directory, discover your service, call your endpoint, and automatically pay your invoice via their `AgentWallet`.
+4. Your service instantly verifies the on-chain payment and delivers the data.
+
+This creates an open ecosystem where human developers can monetize their data, and agents can dynamically discover and acquire the resources they need.
+
 ## Complete Architecture
 
 ```text
@@ -915,9 +927,6 @@ Stablecoins
         ↓
 USDC / ERC-20 Settlement
 
-Agent Marketplace
-        ↓
-Tasks + Workers + Services
 
 Task Categories
         ↓

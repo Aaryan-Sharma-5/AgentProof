@@ -119,7 +119,6 @@ The MVP contains:
 - multiple evaluator consensus
 - multiple workers
 - complex permission frameworks
-- generalized task marketplaces
 - unnecessary contract abstractions
 
 These may be future extensions. They are **not** part of the Blitz MVP.
@@ -155,22 +154,23 @@ The canonical task is:
 2. User locks 0.05 MON in `AgentEscrow`.
 3. User specifies a 0.02 MON spending limit.
 4. Worker agent starts execution.
-5. Worker requests data from provider.
-6. Provider returns HTTP 402.
-7. Provider supplies a 0.01 MON invoice.
-8. AgentFlow checks the spending policy.
-9. Policy approves the payment.
-10. `AgentWallet` pays 0.01 MON.
-11. Provider verifies payment.
-12. Provider returns data.
-13. Worker generates `TaskResult`.
-14. Evaluator performs deterministic checks.
-15. Evaluator passes the result.
-16. Evaluator signs the result digest.
-17. Worker submits the proof to `AgentEscrow`.
-18. `AgentEscrow` verifies the signature.
-19. `AgentEscrow` releases 0.05 MON.
-20. Worker receives the reward.
+5. Worker queries Service Marketplace to discover provider endpoint.
+6. Worker requests data from discovered provider.
+7. Provider returns HTTP 402.
+8. Provider supplies a 0.01 MON invoice.
+9. AgentFlow checks the spending policy.
+10. Policy approves the payment.
+11. `AgentWallet` pays 0.01 MON.
+12. Provider verifies payment.
+13. Provider returns data.
+14. Worker generates `TaskResult`.
+15. Evaluator performs deterministic checks.
+16. Evaluator passes the result.
+17. Evaluator signs the result digest.
+18. Worker submits the proof to `AgentEscrow`.
+19. `AgentEscrow` verifies the signature.
+20. `AgentEscrow` releases 0.05 MON.
+21. Worker receives the reward.
 
 ---
 
@@ -593,16 +593,26 @@ invoice <= spendingLimit
 
 ---
 
-## 18. Provider
+## 18. Provider & Service Marketplace
 
-The provider is a simple HTTP service demonstrating machine-to-machine payments.
+The provider is a simple HTTP service demonstrating machine-to-machine payments, and it registers itself in the **Service Marketplace**.
+
+### Service Marketplace Implementation
+The MVP marketplace should be implemented as a simple registry (e.g., an in-memory directory or static list in `agents/marketplace/registry.ts`) that maps service types to provider endpoints and expected pricing.
+- **Service Name:** e.g., "Weather Data API" or "Competitor Pricing API"
+- **Endpoint:** URL to the provider
+- **Cost:** Expected cost (e.g., `0.01 MON`)
+
+Before calling the provider, the Worker agent queries this registry to discover the correct endpoint for the task.
 
 Canonical flow:
 
 ```
 Worker
   ↓
-GET /pricing
+Query Service Marketplace for required service
+  ↓
+GET /pricing on discovered Provider endpoint
   ↓
 HTTP 402
   ↓
@@ -621,11 +631,11 @@ HTTP 200
 Data
 ```
 
-The provider should remain intentionally simple. Do not build a production-grade payment protocol.
+The provider and marketplace registry should remain intentionally simple. Do not build a production-grade payment protocol or complex DB for the registry.
 
 The purpose is to demonstrate:
 
-> An autonomous agent can encounter a paid resource and pay for it within policy.
+> An autonomous agent can discover a paid resource via the marketplace and pay for it within policy.
 
 ---
 
@@ -837,6 +847,8 @@ agentproof/
 │   ├── evaluator.ts
 │   ├── worker.ts
 │   ├── agentFlow.ts
+│   ├── marketplace/
+│   │   └── registry.ts
 │   └── provider/
 │       └── server.ts
 │
@@ -861,17 +873,22 @@ Implement:
 - `AgentWallet.sol`
 - `AgentWallet.t.sol`
 
-### Phase 2: Provider
+### Phase 2: Provider & Marketplace
 
 Implement `provider/server.ts` with:
 - `GET /pricing`
+
+Implement `agents/marketplace/registry.ts` with:
+- Static directory of available services and endpoints
 
 ### Phase 3: AgentFlow
 
 Implement `agentFlow.ts` with:
 
 ```
-request provider
+query marketplace
+→ find provider endpoint
+→ request provider
 → receive 402
 → parse invoice
 → check spending policy
