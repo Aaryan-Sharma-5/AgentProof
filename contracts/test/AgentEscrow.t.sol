@@ -167,4 +167,88 @@ contract AgentEscrowTest is Test {
         vm.expectRevert(AgentEscrow.TaskNotFound.selector);
         escrow.settleTask(taskId, resultHash, v, r, s);
     }
+
+    function test_ConstructorRejectsZeroVerifier() public {
+        vm.expectRevert(AgentEscrow.ZeroVerifier.selector);
+        new AgentEscrow(address(0));
+    }
+
+    /// Signs a digest as if block.chainid were `wrongChainId`, while the real chain (and therefore the contract's own block.chainid) is unchanged. This proves chain binding: a signature minted for chain A is rejected when submitted on chain B, without ever mutating the test's actual chain ID.
+    function test_WrongChainIdSignatureFails() public {
+        bytes32 taskId = keccak256("task-11");
+        _createTask(taskId);
+
+        bytes32 resultHash = keccak256("result-A");
+        uint256 wrongChainId = block.chainid + 1;
+
+        bytes32 raw = keccak256(
+            abi.encode(wrongChainId, address(escrow), taskId, worker, resultHash)
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", raw));
+        (uint8 v, bytes32 r, bytes32 s) = _signWith(verifierKey, digest);
+
+        vm.prank(worker);
+        vm.expectRevert(AgentEscrow.InvalidSignature.selector);
+        escrow.settleTask(taskId, resultHash, v, r, s);
+
+        (, uint256 reward, bool settled) = escrow.tasks(taskId);
+        assertFalse(settled);
+        assertEq(reward, REWARD);
+        assertEq(address(escrow).balance, REWARD);
+    }
+
+    /// Deploys a second AgentEscrow and proves a signature bound to one instance's address cannot be accepted by the other, demonstrating address(this) binding.
+    function test_CrossContractReplayFails() public {
+        AgentEscrow otherEscrow = new AgentEscrow(verifier);
+
+        bytes32 taskId = keccak256("task-12");
+        _createTask(taskId);
+        vm.deal(creator, REWARD);
+        vm.prank(creator);
+        otherEscrow.createTask{value: REWARD}(taskId);
+
+        bytes32 resultHash = keccak256("result-A");
+
+        // Signed for `otherEscrow`'s address, submitted to the original `escrow`.
+        bytes32 raw = keccak256(
+            abi.encode(block.chainid, address(otherEscrow), taskId, worker, resultHash)
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", raw));
+        (uint8 v, bytes32 r, bytes32 s) = _signWith(verifierKey, digest);
+
+        vm.prank(worker);
+        vm.expectRevert(AgentEscrow.InvalidSignature.selector);
+        escrow.settleTask(taskId, resultHash, v, r, s);
+
+        (, uint256 reward, bool settled) = escrow.tasks(taskId);
+        assertFalse(settled);
+        assertEq(reward, REWARD);
+        assertEq(address(escrow).balance, REWARD);
+    }
+
+    function test_FailedWorkerPayoutLeavesStateUntouched() public {
+        RevertingWorker badWorker = new RevertingWorker();
+
+        bytes32 taskId = keccak256("task-13");
+        _createTask(taskId);
+
+        bytes32 resultHash = keccak256("result-A");
+        bytes32 digest = _digest(taskId, address(badWorker), resultHash);
+        (uint8 v, bytes32 r, bytes32 s) = _signWith(verifierKey, digest);
+
+        vm.prank(address(badWorker));
+        vm.expectRevert(AgentEscrow.TransferFailed.selector);
+        escrow.settleTask(taskId, resultHash, v, r, s);
+
+        (, uint256 reward, bool settled) = escrow.tasks(taskId);
+        assertFalse(settled);
+        assertEq(reward, REWARD);
+        assertEq(address(escrow).balance, REWARD);
+    }
+}
+
+contract RevertingWorker {
+    receive() external payable {
+        revert("nope");
+    }
 }

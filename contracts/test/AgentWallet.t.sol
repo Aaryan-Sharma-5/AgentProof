@@ -92,4 +92,46 @@ contract AgentWalletTest is Test {
         vm.prank(agent);
         wallet.payService(provider, 0.01 ether);
     }
+
+    function test_PaymentExactlyAtMaxPaymentSucceeds() public {
+        wallet.deposit{value: 1 ether}();
+
+        uint256 providerBalanceBefore = provider.balance;
+
+        vm.prank(agent);
+        wallet.payService(provider, MAX_PAYMENT);
+
+        assertEq(provider.balance, providerBalanceBefore + MAX_PAYMENT);
+        assertEq(address(wallet).balance, 1 ether - MAX_PAYMENT);
+    }
+
+    function test_MultipleSequentialPayments() public {
+        wallet.deposit{value: 1 ether}();
+
+        uint256 walletBalance = 1 ether;
+        uint256 providerBalance = provider.balance;
+
+        uint256[3] memory amounts = [uint256(0.005 ether), uint256(0.02 ether), uint256(0.01 ether)];
+
+        for (uint256 i = 0; i < amounts.length; i++) {
+            vm.prank(agent);
+            wallet.payService(provider, amounts[i]);
+
+            walletBalance -= amounts[i];
+            providerBalance += amounts[i];
+
+            assertEq(address(wallet).balance, walletBalance);
+            assertEq(provider.balance, providerBalance);
+        }
+    }
+
+    function test_ConstructorRejectsZeroAgent() public {
+        vm.expectRevert(AgentWallet.ZeroAgent.selector);
+        new AgentWallet(address(0), MAX_PAYMENT);
+    }
+
+    function test_ConstructorRejectsZeroMaxPayment() public {
+        vm.expectRevert(AgentWallet.ZeroMaxPayment.selector);
+        new AgentWallet(agent, 0);
+    }
 }

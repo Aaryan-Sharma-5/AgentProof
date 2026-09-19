@@ -22,8 +22,11 @@ contract AgentEscrow {
     error TaskAlreadySettled();
     error InvalidSignature();
     error TransferFailed();
+    error ZeroVerifier();
 
     constructor(address _trustedVerifier) {
+        if (_trustedVerifier == address(0)) revert ZeroVerifier();
+
         trustedVerifier = _trustedVerifier;
     }
 

@@ -13,8 +13,13 @@ contract AgentWallet {
     error AmountExceedsMaxPayment();
     error InsufficientBalance();
     error TransferFailed();
+    error ZeroAgent();
+    error ZeroMaxPayment();
 
     constructor(address _agent, uint256 _maxPayment) {
+        if (_agent == address(0)) revert ZeroAgent();
+        if (_maxPayment == 0) revert ZeroMaxPayment();
+
         agent = _agent;
         maxPayment = _maxPayment;
     }
