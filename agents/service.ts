@@ -9,7 +9,11 @@ import { findService, listServices, CANONICAL_SERVICE_TYPE } from "./marketplace
 /// It exposes the already-proven worker path over HTTP so the Python/LangGraph layer can
 /// orchestrate it without ever touching a private key, a resultHash, or a settlement signature.
 
-const PORT = Number(process.env.AGENT_SERVICE_PORT ?? 4100);
+// Render (and most PaaS) inject PORT and scan for a listener on it. AGENT_SERVICE_PORT stays
+// supported for local multi-service development, where PORT is usually unset.
+const PORT = Number(process.env.PORT ?? process.env.AGENT_SERVICE_PORT ?? 4100);
+// Containers must bind all interfaces; binding loopback makes the service unreachable from outside.
+const HOST = process.env.HOST ?? "0.0.0.0";
 
 if (!process.env.MONAD_RPC) throw new Error("MONAD_RPC is required");
 if (!process.env.ESCROW_ADDRESS) throw new Error("ESCROW_ADDRESS is required");
@@ -314,8 +318,8 @@ app.get("/run/:id", (req, res) => {
 
 app.get("/runs", (_req, res) => res.status(200).json({ runs: Array.from(runs.values()) }));
 
-app.listen(PORT, () => {
-  console.log(`Canonical agent service listening on :${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Canonical agent service listening on ${HOST}:${PORT}`);
   console.log(`  agent        ${account.address}`);
   console.log(`  AgentWallet  ${walletAddress}`);
   console.log(`  AgentEscrow  ${escrowAddress}`);

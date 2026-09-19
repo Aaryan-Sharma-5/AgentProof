@@ -375,8 +375,24 @@ Measured balance movement for this run:
 >
 > The complete flow **has** been verified end-to-end against real Monad Testnet contracts running
 > locally (see §11.3). Deployment configuration for all four services is written, container-built
-> and ready in [deploy/](deploy/) — it awaits Fly.io billing activation and a Vercel re-login.
-> Follow [deploy/README.md](deploy/README.md) to bring the public stack up.
+> and ready in [deploy/](deploy/) and [render.yaml](render.yaml) — the deploy itself is a manual
+> step, documented in [deploy/README.md](deploy/README.md).
+
+| Item | Value | Status |
+|---|---|---|
+| Frontend (local) | `http://localhost:3000` | ✅ working |
+| FastAPI (local) | `http://localhost:8000` | ✅ working |
+| Agent service (local) | `http://localhost:4100` | ✅ working |
+| Provider (local) | `http://localhost:4000` | ✅ working |
+| Frontend (public) | Vercel — URL assigned on deploy | ⏳ not deployed |
+| FastAPI (public) | Render — URL assigned on deploy | ⏳ not deployed |
+| Agent service (public) | Render Private Service (no public URL by design) | ⏳ not deployed |
+| Provider (public) | Render — URL assigned on deploy | ⏳ not deployed |
+| `AgentWallet` | `0x7263058B4040ae7410340f63d292152DE8d867FA` | ✅ deployed & verified |
+| `AgentEscrow` | `0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1` | ✅ deployed & verified |
+| Provider payout EOA | `0x322BE7De3f74e57B87F24Bb68199e89d97652697` | ✅ receiving payments |
+
+No public URL is published here until it has been deployed and verified.
 
 ---
 
@@ -598,18 +614,24 @@ No `NEXT_PUBLIC_*` variable may ever hold a private key — those are compiled i
 
 The full runbook is in **[deploy/README.md](deploy/README.md)**. Summary:
 
-| Service | Host | Holds keys? | Scaling |
-|---|---|---|---|
-| Next.js frontend | Vercel | No | any |
-| FastAPI + LangGraph | Fly.io (`deploy/fly.api.toml`) | No | any |
-| **Canonical agent service** | Fly.io (`deploy/fly.agent-service.toml`) | **AGENT_KEY + VERIFIER_KEY** | **exactly 1 machine** |
-| HTTP 402 provider | Fly.io (`deploy/fly.provider.toml`) | No | any |
+| Service | Host | Type | Holds keys? | Scaling |
+|---|---|---|---|---|
+| Next.js frontend | **Vercel** | — | No | any |
+| FastAPI + LangGraph | **Render** | Web Service (public) | No | any |
+| **Canonical agent service** | **Render** | **Private Service** | **AGENT_KEY + VERIFIER_KEY** | **exactly 1 instance** |
+| HTTP 402 provider | **Render** | Web Service (public) | No | any |
+
+All Render services run in the **Singapore** region; FastAPI and the agent service must share a
+region for private networking. Blueprint: [`render.yaml`](render.yaml).
 
 > [!WARNING]
-> The agent service must run as **exactly one machine**. It signs `createTask`, `payService` and
-> `settleTask` from a single account; a second replica would race the account nonce and drop
-> transactions. `auto_stop_machines`/`auto_start_machines` are disabled in its config for this
-> reason. Never run `fly scale count 2` on it.
+> The agent service must run as **exactly one instance**. It signs `createTask`, `payService` and
+> `settleTask` from a single EOA, serialised through an in-process queue; a second replica would
+> race the account nonce and drop transactions. `numInstances: 1` is pinned in `render.yaml` and
+> autoscaling must stay off. This is an intentional MVP constraint.
+
+The agent service is a **Private Service**: FastAPI reaches it at `http://agentproof-agent:4100`
+over Render's internal network, so the signer is never exposed to the internet.
 
 Production configuration is enforced in code, not just documented. With `ENVIRONMENT=production`
 the API refuses to start if:

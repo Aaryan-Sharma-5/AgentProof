@@ -1,0 +1,25 @@
+# Secrets - never bake an env file into an image
+.env
+.env.*
+app.env
+!*.env.example
+
+# VCS / tooling
+.git
+.gitignore
+.vscode
+.scratch
+
+# Not needed in the API runtime image
+tests/
+run_tests.py
+pytest.py
+contracts/
+agents/
+frontend/
+deploy/
+node_modules/
+__pycache__/
+*.py[cod]
+*.log
+*.md

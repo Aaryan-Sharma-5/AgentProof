@@ -1,0 +1,130 @@
+# AgentProof — Render Blueprint
+#
+# Deploys the three backend services. The Next.js frontend goes to Vercel separately.
+#
+# Apply with:  Render Dashboard → New → Blueprint → select this repo
+# Or:          render blueprint launch     (Render CLI)
+#
+# Dependency order is enforced by which URLs you paste where; see deploy/README.md.
+# Secrets (AGENT_KEY, VERIFIER_KEY, JWT_SECRET) are marked sync:false and must be entered in the
+# Render dashboard. They are never committed to this file.
+
+services:
+  # ------------------------------------------------------------------
+  # 1. PROVIDER — public web service. Holds NO private key.
+  #    Reads PaymentSettled events from AgentWallet; signs nothing.
+  # ------------------------------------------------------------------
+  - type: web
+    name: agentproof-provider
+    runtime: docker
+    dockerfilePath: ./agents/Dockerfile
+    dockerContext: ./agents
+    dockerCommand: npx tsx provider/server.ts
+    region: singapore
+    plan: free
+    # /pricing answers 402 by design, which reads as unhealthy. Use the dedicated endpoint.
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: MONAD_RPC
+        value: https://testnet-rpc.monad.xyz
+      - key: AGENT_WALLET_ADDRESS
+        value: "0x7263058B4040ae7410340f63d292152DE8d867FA"
+      # Separate provider EOA — receive-only, its key is not needed at runtime.
+      - key: PROVIDER_ADDRESS
+        value: "0x322BE7De3f74e57B87F24Bb68199e89d97652697"
+      - key: PROVIDER_INVOICE_MON
+        value: "0.01"
+
+  # ------------------------------------------------------------------
+  # 2. AGENT SERVICE — PRIVATE service. THE SOLE ECONOMIC SIGNER.
+  #
+  #    Reachable only on Render's private network at:
+  #        http://agentproof-agent:4100
+  #
+  #    CRITICAL: exactly one instance. It signs createTask / payService / settleTask from a
+  #    single EOA; a second replica would race the account nonce and drop transactions.
+  #    numInstances is pinned to 1 and must never be raised.
+  # ------------------------------------------------------------------
+  - type: pserv
+    name: agentproof-agent
+    runtime: docker
+    dockerfilePath: ./agents/Dockerfile
+    dockerContext: ./agents
+    dockerCommand: npx tsx service.ts
+    region: singapore
+    plan: starter
+    numInstances: 1
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: "4100"
+      - key: MONAD_RPC
+        value: https://testnet-rpc.monad.xyz
+      - key: AGENT_WALLET_ADDRESS
+        value: "0x7263058B4040ae7410340f63d292152DE8d867FA"
+      - key: ESCROW_ADDRESS
+        value: "0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1"
+      - key: PROVIDER_ADDRESS
+        value: "0x322BE7De3f74e57B87F24Bb68199e89d97652697"
+      - key: PROVIDER_INVOICE_MON
+        value: "0.01"
+      - key: TASK_REWARD_MON
+        value: "0.05"
+      - key: TASK_SPENDING_LIMIT_MON
+        value: "0.02"
+      # Public HTTPS URL of the provider service above. Set after step 1 completes.
+      - key: PROVIDER_URL
+        sync: false
+      # SECRETS — enter in the Render dashboard, never in this file.
+      - key: AGENT_KEY
+        sync: false
+      - key: VERIFIER_KEY
+        sync: false
+
+  # ------------------------------------------------------------------
+  # 3. FASTAPI + LANGGRAPH — public web service. Holds NO economic key.
+  #    Orchestrates only; dispatches to the agent service over the private network.
+  # ------------------------------------------------------------------
+  - type: web
+    name: agentproof-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: USE_MOCK_PAYMENTS
+        value: "false"
+      - key: ALLOW_LOCAL_PROVIDER
+        value: "false"
+      - key: DEBUG
+        value: "false"
+      - key: CHAIN_ID
+        value: "10143"
+      - key: MONAD_RPC
+        value: https://testnet-rpc.monad.xyz
+      - key: AGENT_WALLET_ADDRESS
+        value: "0x7263058B4040ae7410340f63d292152DE8d867FA"
+      - key: ESCROW_ADDRESS
+        value: "0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1"
+      - key: TASK_REWARD_MON
+        value: "0.05"
+      - key: TASK_SPENDING_LIMIT_MON
+        value: "0.02"
+      - key: WALLET_MAX_PAYMENT_MON
+        value: "0.02"
+      # Private-network address of the agent service. Render private services are reached over
+      # plain HTTP on the internal network; this never leaves Render.
+      - key: AGENT_SERVICE_URL
+        value: http://agentproof-agent:4100
+      # Vercel frontend origin, e.g. https://agentproof.vercel.app — set after the frontend deploys.
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+      # SECRET — generate with `openssl rand -hex 32`.
+      - key: JWT_SECRET
+        generateValue: true

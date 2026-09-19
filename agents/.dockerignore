@@ -1,5 +1,11 @@
-node_modules
+# Secrets - never bake an env file into an image
 .env
-.env.local
+.env.*
+!.env.example
+
+node_modules
 .scratch
+test/
 *.log
+Dockerfile
+.dockerignore

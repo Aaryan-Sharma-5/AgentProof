@@ -2,7 +2,11 @@ import "dotenv/config";
 import express from "express";
 import { createPublicClient, http, parseEther, formatEther, decodeEventLog } from "viem";
 
-const PORT = Number(process.env.PROVIDER_PORT ?? 4000);
+// Render injects PORT and scans for a listener on it. PROVIDER_PORT stays supported for local
+// development, where several services run side by side and PORT is unset.
+const PORT = Number(process.env.PORT ?? process.env.PROVIDER_PORT ?? 4000);
+// Containers must bind all interfaces.
+const HOST = process.env.HOST ?? "0.0.0.0";
 const INVOICE_AMOUNT = process.env.PROVIDER_INVOICE_MON ?? "0.01";
 
 if (!process.env.MONAD_RPC) throw new Error("MONAD_RPC is required");
@@ -74,6 +78,21 @@ async function verifyPayment(txHash: `0x${string}`): Promise<boolean> {
 
 const app = express();
 
+/// Health check for the hosting platform.
+/// Deliberately separate from /pricing, which answers 402 by design and would read as unhealthy.
+/// Does no chain writes, requires no payment, and exposes no secret: the provider holds no key.
+app.get("/health", (_req, res) => {
+  return res.status(200).json({
+    status: "ok",
+    service: "agentproof-provider",
+    invoiceMon: INVOICE_AMOUNT,
+    currency: "MON",
+    paymentAddress: providerAddress,
+    agentWallet: walletAddress,
+    readOnly: true,
+  });
+});
+
 app.get("/pricing", async (req, res) => {
   const txHash = req.header("X-Payment-Tx");
 
@@ -107,7 +126,7 @@ app.get("/pricing", async (req, res) => {
   return res.status(200).json(PRICING_DATA);
 });
 
-app.listen(PORT, () => {
-  console.log(`Provider listening on :${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Provider listening on ${HOST}:${PORT}`);
   console.log(`Invoice per request: ${formatEther(parseEther(INVOICE_AMOUNT))} MON`);
 });
