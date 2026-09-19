@@ -31,22 +31,35 @@ Built for Monad Blitz Mumbai V4.
 
 ## Monad Blitz Submission
 
-Fill these values after deployment.
-
 | Requirement | Value |
 |---|---|
 | GitHub | TODO: PUBLIC_GITHUB_URL |
 | Live Demo | TODO: LIVE_URL |
 | Network | Monad Testnet |
 | Deployment | Monad Testnet |
-| Chain ID | TODO: CHAIN_ID |
+| Chain ID | 10143 |
 
 ### Contracts
 
 | Contract | Address | Explorer |
 |---|---|---|
-| AgentWallet | TODO: AGENT_WALLET_ADDRESS | TODO: EXPLORER_URL |
-| AgentEscrow | TODO: AGENT_ESCROW_ADDRESS | TODO: EXPLORER_URL |
+| AgentWallet | [`0x7263058B4040ae7410340f63d292152DE8d867FA`](https://testnet.monadscan.com/address/0x7263058B4040ae7410340f63d292152DE8d867FA) | [Verified ✅](https://testnet.monadscan.com/address/0x7263058B4040ae7410340f63d292152DE8d867FA#code) |
+| AgentEscrow | [`0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1`](https://testnet.monadscan.com/address/0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1) | [Verified ✅](https://testnet.monadscan.com/address/0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1#code) |
+
+### Deployment Configuration
+
+| Parameter | Value |
+|---|---|
+| Trusted Verifier | `0x4c7c4d8155Fed9b9f09c6619d98773ACcA881305` |
+| Agent | `0x4c7c4d8155Fed9b9f09c6619d98773ACcA881305` |
+| Max Payment (AgentWallet) | 0.02 MON |
+
+### Deployment Transactions
+
+| Contract | Transaction | Block |
+|---|---|---|
+| AgentWallet | [`0x086533...4d68`](https://testnet.monadscan.com/tx/0x0865338519b8dd04a90b8899cf32edbb7f93c692bd95fbb527f6375d67479d68) | 63835810 |
+| AgentEscrow | [`0x592055...fd0e`](https://testnet.monadscan.com/tx/0x59205ac7390d8729a120e814db982afea026640ba7476e9752ae8293160fd0ef) | 63835813 |
 
 ## The Problem
 
