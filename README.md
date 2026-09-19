@@ -10,7 +10,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent%20Graph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://github.com/langchain-ai/langgraph)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14%20App%20Router-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Tests](https://img.shields.io/badge/Tests-80%2F80%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](./run_tests.py)
+[![Tests](https://img.shields.io/badge/Tests-87%2F87%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](./run_tests.py)
 [![Monad Blitz](https://img.shields.io/badge/Hackathon-Monad%20Blitz%20Mumbai%20V4-FF007A?style=for-the-badge)](https://monad.xyz)
 
 <br/>
@@ -132,6 +132,28 @@ AgentProof reconciles this trilemma by decoupling spending controls from earning
 | **Monad Testnet Explorer** | **[testnet.monadscan.com](https://testnet.monadscan.com)** | Monad Testnet Block Explorer (Chain ID: `10143`) |
 | **Official Brand System** | **[agent-proof-gamma.vercel.app/logo](https://agent-proof-gamma.vercel.app/logo)** | Brand lockups, SVG assets, and design tokens |
 
+> [!IMPORTANT]
+> **Current deployment status.** The **frontend is live on Vercel** and the **contracts are
+> deployed and verified on Monad Testnet**. The three backend services (FastAPI, canonical agent
+> service, HTTP 402 provider) are **not yet publicly hosted** — they currently run locally.
+>
+> Consequently the live site cannot execute a task end-to-end yet: its bundle is still built
+> against `localhost:8000`. The complete loop **has** been verified repeatedly against the real
+> Monad Testnet contracts running locally, including through production-shaped Docker containers
+> (see §4.3 for on-chain transaction proof).
+>
+> Deployment is prepared and blocked only on hosting setup: [`render.yaml`](render.yaml) plus the
+> step-by-step runbook in [`deploy/README.md`](deploy/README.md). All three services are configured
+> for Render's **free** plan (no payment method required).
+
+| Component | Status |
+|---|---|
+| Smart contracts (Monad Testnet) | ✅ deployed & verified |
+| Frontend (Vercel) | ✅ live — needs `NEXT_PUBLIC_API_BASE_URL` + rebuild once the backend is up |
+| FastAPI + LangGraph | ⏳ runs locally; Render config ready |
+| Canonical agent service | ⏳ runs locally; Render config ready |
+| HTTP 402 provider | ⏳ runs locally; Render config ready |
+
 ---
 
 ### 4.2 📜 Verified Smart Contracts (Monad Testnet — Chain ID: 10143)
@@ -166,10 +188,16 @@ The canonical multi-agent lifecycle was executed end-to-end on Monad Testnet and
 
 | Lifecycle Step | Monad Transaction Hash | Value | Gas Used | State Transition |
 |---|---|:---:|:---:|---|
-| **1. Lock Reward** | [`0x28524c577fdb26ae291e56da7e3ef7a4d1f981572aa240b18a7763350b7f240c`](https://testnet.monadscan.com/tx/0x28524c577fdb26ae291e56da7e3ef7a4d1f981572aa240b18a7763350b7f240c) | `0.05 MON` | `43,712` | `AgentEscrow.createTask(taskId)` — Bounty locked |
-| **2. Pay Provider** | [`0x37772639ffcc4144d35757634bd26a9a5348ab38eeb3d9212e7186813368ef38`](https://testnet.monadscan.com/tx/0x37772639ffcc4144d35757634bd26a9a5348ab38eeb3d9212e7186813368ef38) | `0.01 MON` | `32,185` | `AgentWallet.payService(provider, 0.01 MON)` — HTTP 402 settled |
-| **3. Settle Bounty** | [`0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8`](https://testnet.monadscan.com/tx/0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8) | `0.05 MON` | `58,940` | `AgentEscrow.settleTask(...)` — ECDSA signature verified, reward released |
-| **Canonical Task ID** | `0x8f01fd3dd74d67bd88241970c7123e1b701a5a78b2a6269eb7a564b4dd5b925c` | — | — | Objective: *"Research three competitors and produce a pricing comparison."* |
+| **1. Lock Reward** | [`0x6ae4d56c17415e404189ad50c6c511ee1b09afd21c5e891409e1b9b7565b4e3e`](https://testnet.monadscan.com/tx/0x6ae4d56c17415e404189ad50c6c511ee1b09afd21c5e891409e1b9b7565b4e3e) | `0.05 MON` | `70,682` | `AgentEscrow.createTask(taskId)` — bounty locked (block `63882133`) |
+| **2. Pay Provider** | [`0x198deaaea2270dc7ac09c0c82cffc4e4d61dab9d0dd5b3edcb312994e0c89d93`](https://testnet.monadscan.com/tx/0x198deaaea2270dc7ac09c0c82cffc4e4d61dab9d0dd5b3edcb312994e0c89d93) | `0.01 MON` | `41,736` | `AgentWallet.payService(...)` — `PaymentSettled` to the **separate provider EOA** (block `63882136`) |
+| **3. Settle Bounty** | [`0x59f5387dc0af2098347ba3155729f37ad9d3591ac316218424ce33eb22e273b0`](https://testnet.monadscan.com/tx/0x59f5387dc0af2098347ba3155729f37ad9d3591ac316218424ce33eb22e273b0) | `0.05 MON` | `494,716` | `AgentEscrow.settleTask(...)` — evaluator signature verified, reward released (block `63882142`) |
+| **Canonical Task ID** | `0x2de071b37262e1f5721ed785c2445e9d1b13a7ce96b2a4ce13d111bb4b2587aa` | — | — | Objective: *"Research three competitors and produce a pricing comparison."* |
+
+This run was dispatched through the full stack — **Browser → FastAPI → LangGraph → canonical agent
+service → Monad Testnet** — with the provider paid at
+[`0x322BE7De…2697`](https://testnet.monadscan.com/address/0x322BE7De3f74e57B87F24Bb68199e89d97652697),
+an EOA distinct from the agent and the verifier, so the 0.01 MON is a genuine external transfer
+rather than a self-payment.
 
 ---
 
@@ -645,9 +673,9 @@ Submits an objective for autonomous execution, HTTP 402 settlement, and escrow r
   "spent_mon": "0.01",
   "reward_mon": "0.05",
   "task_id": "0x8f01fd3dd74d67bd88241970c7123e1b701a5a78b2a6269eb7a564b4dd5b925c",
-  "escrow_tx": "0x28524c577fdb26ae291e56da7e3ef7a4d1f981572aa240b18a7763350b7f240c",
-  "provider_tx": "0x37772639ffcc4144d35757634bd26a9a5348ab38eeb3d9212e7186813368ef38",
-  "settlement_tx": "0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8",
+  "escrow_tx": "0x6ae4d56c17415e404189ad50c6c511ee1b09afd21c5e891409e1b9b7565b4e3e",
+  "provider_tx": "0x198deaaea2270dc7ac09c0c82cffc4e4d61dab9d0dd5b3edcb312994e0c89d93",
+  "settlement_tx": "0x59f5387dc0af2098347ba3155729f37ad9d3591ac316218424ce33eb22e273b0",
   "verification": {
     "status": "verified",
     "confidence": 0.99,
@@ -746,7 +774,7 @@ ESCROW_ADDRESS=0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1
 
 # Provider and Port Settings
 PROVIDER_PORT=4000
-PROVIDER_ADDRESS=0x4c7c4d8155Fed9b9f09c6619d98773ACcA881305
+PROVIDER_ADDRESS=0x322BE7De3f74e57B87F24Bb68199e89d97652697   # separate EOA (see §4.2)
 PROVIDER_INVOICE_MON=0.01
 PROVIDER_URL=http://localhost:4000/pricing
 AGENT_SERVICE_PORT=4100
@@ -839,7 +867,7 @@ PROVIDER_PORT=4001 PROVIDER_INVOICE_MON=0.03 npx tsx provider/server.ts
 The codebase includes an extensive automated test suite covering all layers of the stack:
 
 ```bash
-# Run all 80 Python hermetic automated test suites
+# Run all 87 Python hermetic automated tests
 python run_tests.py
 
 # Run TypeScript typechecks
@@ -858,26 +886,26 @@ cd contracts && forge test
 ======================================================================
   AGENTPROOF AUTOMATED TEST SUITE EXECUTION SUMMARY
 ======================================================================
-  tests.unit.test_requirement_agent ........... [PASSED] (12 tests)
-  tests.unit.test_discovery_agent ............. [PASSED]  (8 tests)
-  tests.unit.test_policy_engine ............... [PASSED]  (9 tests)
-  tests.unit.test_risk_engine ................. [PASSED]  (6 tests)
-  tests.unit.test_api_executor ................ [PASSED]  (7 tests)
-  tests.unit.test_verification_agent .......... [PASSED]  (8 tests)
-  tests.unit.test_payment_service ............. [PASSED]  (5 tests)
-  tests.graph.test_agentflow_graph ............ [PASSED]  (6 tests)
-  tests.graph.test_graph_routing .............. [PASSED]  (4 tests)
-  tests.graph.test_graph_failures ............. [PASSED]  (3 tests)
-  tests.security.test_ssrf .................... [PASSED]  (5 tests)
-  tests.security.test_prompt_injection ........ [PASSED]  (3 tests)
-  tests.security.test_idempotency ............. [PASSED]  (4 tests)
-  tests.edge_cases.test_all_edge_cases ........ [PASSED]  (6 tests)
-  tests.integration.test_request_flow ......... [PASSED]  (4 tests)
-  tests.integration.test_marketplace_flow ..... [PASSED]  (2 tests)
-  tests.integration.test_payment_flow ......... [PASSED]  (5 tests)
-  tests.integration.test_canonical_execution .. [PASSED]  (5 tests)
+  tests.unit.test_requirement_agent ........... [PASSED]  10 tests
+  tests.unit.test_discovery_agent ............. [PASSED]   5 tests
+  tests.unit.test_policy_engine ............... [PASSED]   6 tests
+  tests.unit.test_risk_engine ................. [PASSED]   4 tests
+  tests.unit.test_api_executor ................ [PASSED]   3 tests
+  tests.unit.test_verification_agent .......... [PASSED]   6 tests
+  tests.unit.test_payment_service ............. [PASSED]   3 tests
+  tests.graph.test_agentflow_graph ............ [PASSED]   1 tests
+  tests.graph.test_graph_routing .............. [PASSED]   2 tests
+  tests.graph.test_graph_failures ............. [PASSED]   2 tests
+  tests.security.test_ssrf .................... [PASSED]   4 tests
+  tests.security.test_prompt_injection ........ [PASSED]   3 tests
+  tests.security.test_idempotency ............. [PASSED]   1 tests
+  tests.edge_cases.test_all_edge_cases ........ [PASSED]   6 tests
+  tests.integration.test_request_flow ......... [PASSED]   1 tests
+  tests.integration.test_marketplace_flow ..... [PASSED]   5 tests
+  tests.integration.test_payment_flow ......... [PASSED]   5 tests
+  tests.integration.test_canonical_execution .. [PASSED]  20 tests
 ----------------------------------------------------------------------
-  TOTAL: ALL 18 HERMETIC TEST SUITES PASSED (100% Success Rate)
+  TOTAL: 87 TESTS ACROSS 18 HERMETIC SUITES - ALL PASSED
 ======================================================================
 ```
 
@@ -906,12 +934,13 @@ AgentProof was architected, engineered, and shipped for **Monad Blitz Mumbai V4*
   - `AgentWallet.sol`: [`0x7263058B4040ae7410340f63d292152DE8d867FA`](https://testnet.monadscan.com/address/0x7263058B4040ae7410340f63d292152DE8d867FA#code)
   - `AgentEscrow.sol`: [`0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1`](https://testnet.monadscan.com/address/0x0AEb04B6e92984EC94BbbB4aF234efD080e8e9f1#code)
 - [x] **Verified On-Chain Canonical Execution Transactions**:
-  - Escrow Funding: [`0x2852...240c`](https://testnet.monadscan.com/tx/0x28524c577fdb26ae291e56da7e3ef7a4d1f981572aa240b18a7763350b7f240c)
-  - Provider Micropayment: [`0x3777...ef38`](https://testnet.monadscan.com/tx/0x37772639ffcc4144d35757634bd26a9a5348ab38eeb3d9212e7186813368ef38)
-  - Bounty Settlement: [`0xefc3...e0a8`](https://testnet.monadscan.com/tx/0xefc36e3357895f59c4a9ec18fae1139ad38550d3048001a3fffce18e5e80e0a8)
-- [x] **Live Hosted Web3 dApp**: [agent-proof-gamma.vercel.app](https://agent-proof-gamma.vercel.app/)
+  - Escrow Funding: [`0x6ae4...4e3e`](https://testnet.monadscan.com/tx/0x6ae4d56c17415e404189ad50c6c511ee1b09afd21c5e891409e1b9b7565b4e3e)
+  - Provider Micropayment: [`0x198d...9d93`](https://testnet.monadscan.com/tx/0x198deaaea2270dc7ac09c0c82cffc4e4d61dab9d0dd5b3edcb312994e0c89d93)
+  - Bounty Settlement: [`0x59f5...e273b0`](https://testnet.monadscan.com/tx/0x59f5387dc0af2098347ba3155729f37ad9d3591ac316218424ce33eb22e273b0)
+- [x] **Live Hosted Frontend**: [agent-proof-gamma.vercel.app](https://agent-proof-gamma.vercel.app/)
+- [ ] **Public Backend Hosting**: FastAPI, agent service and provider run locally; Render free-plan config ready in [`render.yaml`](render.yaml) / [`deploy/README.md`](deploy/README.md)
 - [x] **Official Brand System & Vector Assets**: [agent-proof-gamma.vercel.app/logo](https://agent-proof-gamma.vercel.app/logo)
-- [x] **100% Hermetic Automated Tests (80/80)**: Passing via `python run_tests.py`
+- [x] **Automated Tests (87/87 Python, 13 TypeScript, 26 Solidity)**: `python run_tests.py`, `cd agents && npm test`, `cd contracts && forge test`
 
 ---
 

@@ -57,6 +57,7 @@ class AgentFlowState(TypedDict, total=False):
     retry_count: int
 
     final_status: str
+    final_answer: Optional[str]
     error_code: Optional[str]
     error_message: Optional[str]
 

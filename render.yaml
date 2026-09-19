@@ -14,6 +14,15 @@
 # service reachable over the public internet, and its one mutating route (POST /run) is protected
 # by a shared bearer token (AGENT_SERVICE_TOKEN) instead of network isolation. Read-only routes
 # stay open so the dashboard can poll state and anyone can verify the real transaction hashes.
+#
+# IMPORTANT — SERVICE NAMING:
+# The hostname agentproof-api.onrender.com is already occupied by an unrelated project.
+# These services use the "-ap" suffix to avoid the collision:
+#   agentproof-provider-ap  →  https://agentproof-provider-ap.onrender.com
+#   agentproof-agent-ap     →  https://agentproof-agent-ap.onrender.com
+#   agentproof-api-ap       →  https://agentproof-api-ap.onrender.com
+# Adjust the names if you prefer different slugs — just keep them consistent with the URLs you
+# set for PROVIDER_URL, AGENT_SERVICE_URL, CORS_ALLOW_ORIGINS and NEXT_PUBLIC_API_BASE_URL.
 
 services:
   # ------------------------------------------------------------------
@@ -21,7 +30,7 @@ services:
   #    Reads PaymentSettled events from AgentWallet; signs nothing.
   # ------------------------------------------------------------------
   - type: web
-    name: agentproof-provider
+    name: agentproof-provider-ap
     runtime: docker
     dockerfilePath: ./agents/Dockerfile
     dockerContext: ./agents
@@ -54,7 +63,7 @@ services:
   #    numInstances is pinned to 1 and must never be raised, and autoscaling must stay off.
   # ------------------------------------------------------------------
   - type: web
-    name: agentproof-agent
+    name: agentproof-agent-ap
     runtime: docker
     dockerfilePath: ./agents/Dockerfile
     dockerContext: ./agents
@@ -99,7 +108,7 @@ services:
   #    Orchestrates only; dispatches to the agent service over HTTPS with a bearer token.
   # ------------------------------------------------------------------
   - type: web
-    name: agentproof-api
+    name: agentproof-api-ap
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .

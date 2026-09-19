@@ -5,13 +5,28 @@ and queries request execution status and verified results.
 """
 
 from __future__ import annotations
+import logging
 import uuid
+from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks, status
 from pydantic import BaseModel, Field
+from app.config.settings import settings
 from app.graph.state import AgentFlowState
 from app.agents.supervisor.supervisor import SupervisorAgent
 from app.repositories.in_memory import store
+
+logger = logging.getLogger(__name__)
+
+
+def _format_mon(value: float) -> str:
+    """
+    Formats a MON amount as an exact plain decimal string.
+
+    Goes via Decimal(str(value)) because f"{0.05:.18f}" yields "0.050000000000000003", which would
+    display a wrong reward. These are display values only; the agent service owns the real amounts.
+    """
+    return format(Decimal(str(value)).normalize(), "f")
 
 router = APIRouter(prefix="/agent-requests", tags=["Agent Requests"])
 supervisor = SupervisorAgent()
@@ -30,6 +45,7 @@ class RequestStatusResponse(BaseModel):
     agent_id: str
     raw_request: str
     final_status: str
+    final_answer: Optional[str] = None
     intent: Optional[Dict[str, Any]] = None
     selected_api: Optional[Dict[str, Any]] = None
     blockchain_tx_hash: Optional[str] = None
@@ -65,6 +81,7 @@ def _to_response(source: Dict[str, Any], **overrides: Any) -> "RequestStatusResp
         "agent_id": source.get("agent_id", "agent-1"),
         "raw_request": source.get("raw_request", ""),
         "final_status": source.get("final_status", "UNKNOWN"),
+        "final_answer": source.get("final_answer"),
         "intent": source.get("intent"),
         "selected_api": source.get("selected_api"),
         "blockchain_tx_hash": source.get("blockchain_tx_hash"),
@@ -92,25 +109,79 @@ def _to_response(source: Dict[str, Any], **overrides: Any) -> "RequestStatusResp
     return RequestStatusResponse(**data)
 
 
+async def _execute_request(req: CreateAgentRequest, req_id: str) -> None:
+    """
+    Runs the orchestration graph to completion in the background.
+
+    A canonical execution takes minutes: it waits on real Monad Testnet receipts for createTask,
+    payService and settleTask. Awaiting that inside the HTTP handler would hold the connection open
+    for the whole run, so a proxy timeout or a closed browser tab would abandon a run that is
+    already spending real MON. Running it detached lets the request return immediately while the
+    graph publishes progress to the store after every node.
+
+    Python still cannot authorize a payment here: the graph dispatches to the canonical TypeScript
+    agent service over HTTP and holds no key, computes no resultHash and signs nothing.
+    """
+    try:
+        await supervisor.run(
+            raw_request=req.message,
+            user_id=req.user_id,
+            agent_id=req.agent_id,
+            request_id=req_id,
+        )
+    except Exception as exc:  # noqa: BLE001 - a background task must never die silently
+        # The run is unobservable if this is swallowed, so the failure is recorded on the request
+        # itself. The message is deliberately generic: the detail goes to the server log only.
+        logger.exception("Background execution failed for request %s", req_id)
+        record = store.requests.get(req_id) or {}
+        record.update(
+            {
+                "request_id": req_id,
+                "final_status": "FAILED",
+                "error_code": "INTERNAL_ERROR",
+                "error_message": "Orchestration failed. See server logs for detail.",
+                "_finalized": True,
+            }
+        )
+        store.requests[req_id] = record
+
+
 @router.post("", response_model=RequestStatusResponse, status_code=status.HTTP_202_ACCEPTED)
-async def submit_agent_request(req: CreateAgentRequest):
+async def submit_agent_request(req: CreateAgentRequest, background_tasks: BackgroundTasks):
+    """
+    Accepts a task and returns 202 immediately with the request_id.
+
+    The caller polls GET /v1/agent-requests/{request_id} to follow the lifecycle. The record is
+    seeded into the store before this returns, so that poll can never 404 on a request the client
+    was just told to poll.
+    """
     req_id = req.request_id or f"AF-{uuid.uuid4().hex[:8]}"
 
-    # Execute workflow graph asynchronously
-    final_state = await supervisor.run(
-        raw_request=req.message,
-        user_id=req.user_id,
-        agent_id=req.agent_id,
-        request_id=req_id
-    )
+    if req_id in store.requests:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Request '{req_id}' already exists.",
+        )
 
-    return _to_response(
-        final_state,
-        request_id=req_id,
-        user_id=req.user_id,
-        agent_id=req.agent_id,
-        raw_request=req.message,
-    )
+    seed: Dict[str, Any] = {
+        "request_id": req_id,
+        "user_id": req.user_id,
+        "agent_id": req.agent_id,
+        "raw_request": req.message,
+        "final_status": "RECEIVED",
+        "canonical_status": "queued",
+        "canonical_stage": "queued",
+        "reward_mon": _format_mon(settings.task_reward_mon),
+        "spending_limit_mon": _format_mon(settings.task_spending_limit_mon),
+        "is_mock": settings.use_mock_payments,
+        "execution_stages": [],
+    }
+    # Written before the response so the client's first poll always finds the request.
+    store.requests[req_id] = seed
+
+    background_tasks.add_task(_execute_request, req, req_id)
+
+    return _to_response(seed)
 
 
 @router.get("/{request_id}", response_model=RequestStatusResponse)

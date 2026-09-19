@@ -15,7 +15,7 @@ It orchestrates. The TypeScript service spends, proves and earns.
 
 from __future__ import annotations
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from app.config.settings import settings
 
@@ -128,9 +128,14 @@ class AgentExecutionClient:
         run_id: str,
         poll_interval_seconds: float = 1.5,
         max_wait_seconds: Optional[float] = None,
+        on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
         Polls GET /run/:id until the run reaches a terminal state ('settled' or 'failed').
+
+        `on_progress` receives every intermediate record. The whole on-chain phase happens inside
+        this one call, so without it the orchestration layer would learn nothing until the run
+        finished and the frontend would see no lifecycle progression for minutes.
 
         On timeout the last observed record is returned with a timeout error attached, rather than
         raising, so the orchestration layer can still record whatever real transactions occurred.
@@ -141,6 +146,12 @@ class AgentExecutionClient:
 
         while elapsed < deadline_budget:
             record = await self.get_run(run_id)
+            if on_progress is not None:
+                # Progress reporting must never abort a run that is spending real MON on-chain.
+                try:
+                    on_progress(record)
+                except Exception:  # pragma: no cover - strictly best-effort
+                    pass
             status = record.get("status")
             if status in ("settled", "failed"):
                 return record

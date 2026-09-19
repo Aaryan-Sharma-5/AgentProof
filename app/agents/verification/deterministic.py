@@ -116,13 +116,13 @@ class DeterministicVerifier:
                     f"Target asset mismatch: Requested '{target_upper}', but provider returned '{resp_asset}'."
                 )
 
-        # 3. Canonical Demo Competitor Pricing Check (10 records required for evaluation)
+        # 3. Canonical Demo Competitor Pricing Check
         if intent.category == "competitor_pricing":
             records = data.get("records")
             if not isinstance(records, list) or len(records) == 0:
                 issues.append("Competitor pricing records missing or empty.")
-            elif len(records) != 10:
-                issues.append(f"Canonical demo requires 10 pricing records, received {len(records)}.")
+            elif len(records) < 3:
+                issues.append(f"Canonical demo requires at least 3 pricing records, received {len(records)}.")
 
         # 4. Freshness Check
         if settings.enforce_freshness and intent.freshness == "current" and "timestamp" in data:

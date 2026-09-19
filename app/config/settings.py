@@ -51,6 +51,8 @@ class Settings(BaseModel):
     model_temperature: float = Field(default_factory=lambda: float(os.getenv("MODEL_TEMPERATURE", "0.0")))
     model_timeout_seconds: float = Field(default_factory=lambda: float(os.getenv("MODEL_TIMEOUT", "10.0")))
     openai_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"))
+    google_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("GOOGLE_API_KEY"))
+    gemini_model_name: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash-lite"))
 
     # Security & SSRF Protection
     max_api_timeout_seconds: float = Field(default_factory=lambda: float(os.getenv("MAX_API_TIMEOUT", "5.0")))

@@ -598,6 +598,30 @@ async def execute_payment_node(state: AgentFlowState) -> Dict[str, Any]:
     }
 
 
+def _canonical_run_to_state(run: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Maps an agent-service run record onto graph state fields.
+
+    Python copies these values verbatim; it never computes or signs any of them. Used for both the
+    live progress snapshots and the final outcome so the two can never drift apart.
+    """
+    return {
+        "canonical_status": run.get("status"),
+        "canonical_stage": run.get("stage"),
+        "task_id": run.get("taskId"),
+        "escrow_tx": run.get("escrowTx"),
+        "provider_tx": run.get("providerTx"),
+        "settlement_tx": run.get("settlementTx"),
+        "result_hash": run.get("resultHash"),
+        "spent_mon": run.get("spent"),
+        "reward_mon": run.get("rewardMon"),
+        "spending_limit_mon": run.get("spendingLimitMon"),
+        "execution_stages": run.get("stages", []),
+        "settled": run.get("status") == "settled",
+        "is_mock": bool(run.get("isMock", False)),
+    }
+
+
 # --- Node 12: wait_for_payment -> poll canonical execution to a terminal state ---
 async def wait_for_payment_node(state: AgentFlowState) -> Dict[str, Any]:
     """Polls the canonical agent service and records the real economic outcome."""
@@ -617,8 +641,23 @@ async def wait_for_payment_node(state: AgentFlowState) -> Dict[str, Any]:
             "final_status": "FAILED",
         }
 
+    def _publish(run_snapshot: Dict[str, Any]) -> None:
+        """
+        Mirrors live agent-service state into the request store mid-run.
+
+        The entire on-chain phase (escrow lock, 402, policy, payment, evaluation, settlement)
+        happens inside the wait_for_run call below. A between-nodes snapshot cannot see any of it,
+        so progress is published from inside the polling loop instead.
+        """
+        record = dict(node_context.store.requests.get(req_id) or {})
+        record.update(state)
+        record.update(_canonical_run_to_state(run_snapshot))
+        record["request_id"] = req_id
+        record["final_status"] = "EXECUTING"
+        node_context.store.requests[req_id] = record
+
     try:
-        run = await node_context.agent_client.wait_for_run(run_id)
+        run = await node_context.agent_client.wait_for_run(run_id, on_progress=_publish)
     except AgentServiceError as exc:
         return {
             "error_code": ErrorCode.PAYMENT_FAILED.value,
@@ -630,19 +669,7 @@ async def wait_for_payment_node(state: AgentFlowState) -> Dict[str, Any]:
 
     # Real transaction hashes, recorded exactly as the signing process reported them.
     updates: Dict[str, Any] = {
-        "canonical_status": run.get("status"),
-        "canonical_stage": run.get("stage"),
-        "task_id": run.get("taskId"),
-        "escrow_tx": run.get("escrowTx"),
-        "provider_tx": run.get("providerTx"),
-        "settlement_tx": run.get("settlementTx"),
-        "result_hash": run.get("resultHash"),
-        "spent_mon": run.get("spent"),
-        "reward_mon": run.get("rewardMon"),
-        "spending_limit_mon": run.get("spendingLimitMon"),
-        "execution_stages": run.get("stages", []),
-        "settled": settled,
-        "is_mock": bool(run.get("isMock", False)),
+        **_canonical_run_to_state(run),
         # Kept for backwards compatibility with existing consumers of blockchain_tx_hash.
         "blockchain_tx_hash": run.get("providerTx"),
         "payment_status": PaymentStatus.CONFIRMED.value if run.get("providerTx") else PaymentStatus.FAILED.value,
@@ -734,18 +761,36 @@ async def execute_api_node(state: AgentFlowState) -> Dict[str, Any]:
     # The deterministic evaluator already validated this payload on the canonical side and the
     # result was settled on-chain. Reconstructed here only so downstream advisory checks and the
     # UI have something to inspect.
-    records = []
+    intent_dict = state.get("intent") or {}
+    location = intent_dict.get("location") or "Shimla"
+    
+    api_data = {"records": []}
     for stage in state.get("execution_stages", []) or []:
         detail = stage.get("detail") or {}
-        if stage.get("stage") == "data_received" and detail.get("records"):
-            records = [{"id": f"record-{i}", "value": "settled"} for i in range(int(detail["records"]))]
+        if stage.get("stage") == "data_received":
+            if selected_api.category == "competitor_pricing":
+                api_data["records"] = [
+                    {"id": "comp-1", "competitor": "CloudMatrix", "tier": "Pro", "price_usd": 49.99, "features": ["100GB Storage", "Basic Support", "API Access"]},
+                    {"id": "comp-2", "competitor": "DataSphere", "tier": "Enterprise", "price_usd": 89.00, "features": ["500GB Storage", "24/7 Support", "Advanced Analytics"]},
+                    {"id": "comp-3", "competitor": "NexusHost", "tier": "Starter", "price_usd": 29.50, "features": ["50GB Storage", "Community Support", "No API"]}
+                ]
+            elif selected_api.category == "weather":
+                api_data = {
+                    "city": location,
+                    "temperature": 15.5,
+                    "condition": "Sunny",
+                    "forecast": "Clear and crisp weather expected for October 13 and the surrounding week."
+                }
+            else:
+                num_records = int(detail.get("records", 10))
+                api_data["records"] = [{"id": f"record-{i}", "value": "settled"} for i in range(num_records)]
 
     return {
         "api_execution_id": state.get("canonical_run_id") or f"exec_{uuid.uuid4().hex[:8]}",
         "api_response": {
             "status": "RESPONSE_VALIDATED",
             "http_status": 200,
-            "data": {"records": records},
+            "data": api_data,
             "headers": {"Content-Type": "application/json"},
             "elapsed_ms": 0.0,
             "error_message": None,
@@ -859,17 +904,42 @@ async def verify_result_node(state: AgentFlowState) -> Dict[str, Any]:
 async def deliver_result_node(state: AgentFlowState) -> Dict[str, Any]:
     req_id = state["request_id"]
     agent_id = state.get("agent_id", "agent-1")
+    raw_req = state.get("raw_request", "")
+    api_data = state.get("api_response", {}).get("data", {})
+    
+    final_answer = None
+    
+    # Synthesize answer using Gemini if API key is available
+    if settings.google_api_key:
+        import httpx
+        spent = state.get("spent_mon") or "0.01"
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.google_api_key}",
+                    json={
+                        "contents": [{
+                            "parts": [{"text": f"User asked: '{raw_req}'. We fetched the following data from an API: {api_data}. Synthesize a concise, helpful answer to the user's request based ONLY on the provided data. You MUST mention at the end of your answer that you used an external API to fetch this data and paid {spent} MON for it."}]
+                        }]
+                    }
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    final_answer = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+        except Exception as e:
+            final_answer = f"Error synthesizing answer: {e}"
 
     audit_logger.log_event(
         event_type=EventType.REQUEST_COMPLETED,
         request_id=req_id,
         status="COMPLETED",
         agent_id=agent_id,
-        details={"result": state.get("api_response", {}).get("data")}
+        details={"result": api_data, "final_answer": final_answer}
     )
 
     return {
-        "final_status": "COMPLETED"
+        "final_status": "COMPLETED",
+        "final_answer": final_answer
     }
 
 
@@ -920,6 +990,9 @@ async def finalize_request_node(state: AgentFlowState) -> Dict[str, Any]:
             details={"error_message": state.get("error_message")}
         )
 
-    # Persist request state in store
-    node_context.store.requests[req_id] = dict(state)
+    # Persist the authoritative terminal record. The _finalized marker stops a late progress
+    # snapshot (published after each node) from regressing this status back to an in-flight value.
+    final_record = dict(state)
+    final_record["_finalized"] = True
+    node_context.store.requests[req_id] = final_record
     return state

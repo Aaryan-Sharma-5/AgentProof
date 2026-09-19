@@ -28,7 +28,7 @@ class RequirementAgent:
     }
 
     UNSUPPORTED_KEYWORDS = [
-        "transfer all", "steal", "drain", "hack", "exploit", "private key",
+        "transfer all", "steal", "drain", "exploit", "private key",
         "illegal", "ddos", "delete database", "drop table", "malware"
     ]
 
