@@ -16,3 +16,8 @@ contracts/broadcast/
 # Editor
 .vscode/
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
