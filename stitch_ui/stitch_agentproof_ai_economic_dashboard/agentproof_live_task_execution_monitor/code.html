@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#ffdad8","secondary-fixed-dim":"#c8c6c5","primary-container":"#ff5a5f","on-primary-fixed":"#410007","on-secondary-fixed":"#1b1c1c","on-tertiary-fixed-variant":"#004f52","surface":"#fbf9f9","primary":"#b52330","error":"#ba1a1a","inverse-on-surface":"#f2f0f0","surface-variant":"#e3e2e2","on-primary":"#ffffff","secondary-container":"#e2dfde","surface-container-low":"#f5f3f3","on-secondary-container":"#636262","on-secondary-fixed-variant":"#474746","on-surface":"#1b1c1c","tertiary-fixed":"#91f2f7","primary-fixed-dim":"#ffb3b0","on-tertiary-fixed":"#002021","on-primary-container":"#61000e","on-tertiary-container":"#003335","on-background":"#1b1c1c","surface-tint":"#b52330","tertiary-fixed-dim":"#74d6db","inverse-primary":"#ffb3b0","error-container":"#ffdad6","tertiary-container":"#3aa2a7","on-tertiary":"#ffffff","inverse-surface":"#303031","on-error-container":"#93000a","on-primary-fixed-variant":"#92001b","tertiary":"#00696d","on-surface-variant":"#5a403f","surface-dim":"#dbdad9","on-error":"#ffffff","surface-container-high":"#e9e8e7","outline-variant":"#e2bebc","surface-container":"#efeded","background":"#fbf9f9","secondary-fixed":"#e5e2e1","surface-container-lowest":"#ffffff","surface-container-highest":"#e3e2e2","on-secondary":"#ffffff","surface-bright":"#fbf9f9","outline":"#8e706f","secondary":"#5f5e5e"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{gutter:"1.5rem","space-sm":"0.5rem","space-xs":"0.25rem","space-xl":"2.5rem","space-md":"1rem",margin:"3rem","margin-mobile":"1.25rem","gutter-mobile":"1rem","space-lg":"1.5rem"},fontFamily:{"label-sm":["Plus Jakarta Sans"],"headline-lg-mobile":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],display:["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"]},fontSize:{"label-sm":["0.75rem",{lineHeight:"1rem",letterSpacing:"0.02em",fontWeight:"600"}],"headline-lg-mobile":["1.75rem",{lineHeight:"2.25rem",letterSpacing:"-0.02em",fontWeight:"600"}],"headline-sm":["1.25rem",{lineHeight:"1.75rem",letterSpacing:"-0.01em",fontWeight:"600"}],"body-md":["0.9375rem",{lineHeight:"1.5rem",letterSpacing:"0",fontWeight:"400"}],"headline-lg":["2.25rem",{lineHeight:"2.75rem",letterSpacing:"-0.025em",fontWeight:"600"}],"label-md":["0.875rem",{lineHeight:"1.25rem",letterSpacing:"0.01em",fontWeight:"600"}],display:["3rem",{lineHeight:"3.5rem",letterSpacing:"-0.03em",fontWeight:"700"}],"body-sm":["0.8125rem",{lineHeight:"1.25rem",letterSpacing:"0.005em",fontWeight:"400"}],"body-lg":["1.125rem",{lineHeight:"1.75rem",letterSpacing:"0",fontWeight:"400"}],"headline-md":["1.5rem",{lineHeight:"2rem",letterSpacing:"-0.02em",fontWeight:"600"}]}}}}</script></head><body class="bg-background font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-surface-container"><div class="h-16 w-full px-gutter flex items-center justify-between"><div class="flex items-center gap-space-md"><img alt="AgentProof Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1UtHf8oOF7fpui2t5a8XHYBUKK1hPA7aojbputIJ7-vIK70l4wn_-gVrXL6jjUbQS6dtxQqET98K1RkDy66mpa8sS5b_98Zxicc9reYuomRQTrT_LcieztTSZs2fA73tDnzsjMA3MnNzHNmYLtXFnCB1m9NvCTyxZsRwu_kGdSaoEjZdaMsvK1i5i2_R9_j5qi8U6nNbyAiPMMbRznZRpwhqzGYvkf3u-NEtY1I8APNSlGLHo-UCNipKA"/><span class="font-headline-sm text-headline-sm tracking-tight text-on-surface font-semibold">AgentProof</span></div><nav class="hidden md:flex items-center gap-gutter" data-active-classes="text-on-surface font-label-md text-label-md border-b-2 border-primary-container pb-1"><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="tasks" href="#">Tasks</a><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="marketplace" href="#">Marketplace</a><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="agentflow-policy" href="#">AgentFlow Policy</a><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors pb-1" data-path="wallet-escrow" href="#">Wallet Escrow</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low border border-surface-container"><span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span><span class="font-label-sm text-label-sm text-on-surface">Monad Devnet</span></div><div class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low border border-surface-container hover:bg-surface-container transition-colors cursor-pointer"><span class="font-label-sm text-label-sm font-semibold text-on-surface">14.50 MON</span><span class="font-body-sm text-body-sm text-secondary">|</span><span class="font-label-sm text-label-sm text-secondary font-mono">0x71C...4f9b</span></div><div class="flex items-center pl-space-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9BEV8p1SJGFqsOSr1Sw1je0DEOTYVeDQn8C8yWGoftlnGjA1ah5d9CP7nl6PSRnktAgr2XlHV6ktwSrXWKMI05feUb_PGTTJABTnE5_cTznLS6inLbnmXbQIH0mX-Wn6h0_z4Z6UnnES7jepcvx9O5Wrm59wdC_h-LTTSiMo_fmjZKhSrHWTLfZt7V5Cxgwt9h3IVEnX3_mGFEW0HwXCZHgrNmowUj0cmYaOLcO77l58anHK8i3UK"/></div></div></div></header><aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-lowest border-r border-surface-container z-40 flex flex-col justify-between py-space-lg px-space-md overflow-y-auto"><div class="flex flex-col gap-space-lg"><div class="px-space-md"><p class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Economic Workspace</p></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-semibold shadow-sm"><a aria-current="page" class="flex items-center gap-space-md px-space-md py-2.5 rounded-full transition-all group bg-primary-container text-on-primary font-semibold shadow-sm" data-path="live-execution-monitor" href="#"><span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">monitoring</span><span class="font-label-md text-label-md">Execution Monitor</span></a><a class="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="autonomous-agents" href="#"><span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">smart_toy</span><span class="font-label-md text-label-md">Registered Agents</span></a><a class="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="proof-verification" href="#"><span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">verified_user</span><span class="font-label-md text-label-md">Zero-Knowledge Proofs</span></a><a class="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="liquidity-escrow-vaults" href="#"><span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">account_balance_wallet</span><span class="font-label-md text-label-md">Escrow Vaults</span></a><a class="flex items-center gap-space-md px-space-md py-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all group" data-path="dispute-arbitration" href="#"><span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-on-surface transition-colors">gavel</span><span class="font-label-md text-label-md">Arbitration &amp; Slashing</span></a></nav></div><div class="flex flex-col gap-space-md px-space-md pt-space-lg border-t border-surface-container"><div class="flex items-center justify-between"><div class="flex items-center gap-space-xs"><span class="w-2 h-2 rounded-full bg-tertiary-container"></span><span class="font-label-sm text-label-sm text-secondary">Consensus Active</span></div><span class="font-label-sm text-label-sm font-mono text-on-surface-variant">v1.4.2</span></div><p class="font-body-sm text-body-sm text-secondary">© 2025 AgentProof Network</p></div></aside><div class="pl-64"><main class="w-full min-h-screen pt-16 bg-surface"><div class="flex flex-col w-full">
+<div class="w-full max-w-[1440px] mx-auto px-gutter py-space-md">
+<!-- Top Action Breadcrumb Bar -->
+<div class="flex items-center justify-between pb-space-md">
+<div class="flex items-center gap-space-sm">
+<a class="inline-flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-container-lowest shadow-sm hover:bg-surface-container transition-colors text-secondary hover:text-on-surface" href="#">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span class="font-label-sm text-label-sm">Back to Tasks</span>
+</a>
+<span class="font-body-sm text-body-sm text-secondary px-1">/</span>
+<span class="font-label-sm text-label-sm text-secondary font-mono tracking-tight">TSK-8924-MND</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center gap-2 px-space-md py-1.5 rounded-full bg-surface-container-lowest shadow-sm">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary-container"></span>
+</span>
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">Live Executing</span>
+</div>
+<div class="hidden sm:flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-container-lowest text-secondary shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-tertiary">hub</span>
+<span class="font-label-sm text-label-sm font-mono text-tertiary">Monad Node #42</span>
+</div>
+</div>
+</div>
+<!-- Main 2-Column Split: 45% / 55% Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<!-- LEFT COLUMN: Task Identity, Escrow Economics & Invoices -->
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+<!-- Header & Identity Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm relative overflow-hidden">
+<div class="absolute -right-12 -top-12 w-36 h-36 bg-primary-container/5 rounded-full blur-2xl pointer-events-none"></div>
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-space-sm py-0.5 rounded-full bg-primary-container/10 text-primary-container font-label-sm text-label-sm tracking-wide uppercase">Autonomous Cycle</span>
+<span class="font-body-sm text-body-sm text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">schedule</span> 4 mins ago
+              </span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight leading-snug">
+              Competitor Pricing Research &amp; Scraping
+            </h1>
+<div class="pt-space-xs flex flex-wrap items-center gap-y-2 gap-x-space-md font-body-sm text-body-sm text-secondary">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">tag</span>
+<span class="font-mono text-on-surface font-medium">#TSK-8924-MND</span>
+</div>
+<span class="text-surface-variant">•</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-tertiary">smart_toy</span>
+<span class="font-mono text-on-surface font-medium">0x93b2...77e</span>
+<button class="hover:text-on-surface p-0.5" onclick="navigator.clipboard.writeText('0x93b294c718fa40debc120938477e')" title="Copy agent address">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Escrow Financials Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md relative">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+</div>
+<div>
+<h3 class="font-label-md text-label-md text-on-surface">Escrow Financials</h3>
+<p class="font-body-sm text-body-sm text-secondary">Contract Locked: 0x4a8...d91</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">0.070 MON</span>
+<p class="font-label-sm text-label-sm text-tertiary">Total Escrow</p>
+</div>
+</div>
+<!-- Micro Allocation Breakdown -->
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="p-space-md rounded-lg bg-surface-container-low flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-secondary">Bounty Reward</span>
+<span class="material-symbols-outlined text-[16px] text-secondary">lock</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-on-surface">0.050 MON</span>
+<span class="font-label-sm text-label-sm text-secondary">Held for final proof</span>
+</div>
+<div class="p-space-md rounded-lg bg-surface-container-low flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-secondary">Service Budget</span>
+<span class="material-symbols-outlined text-[16px] text-tertiary">bolt</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-on-surface">0.020 MON</span>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-secondary">
+<span>0.008 spent</span>
+<span class="text-primary-container font-medium">0.012 left</span>
+</div>
+</div>
+</div>
+<!-- Real-time Burn Gauge (Autonomous Budget Gauge) -->
+<div class="flex flex-col gap-1.5 pt-space-xs">
+<div class="flex justify-between items-center font-label-sm text-label-sm">
+<span class="text-secondary">Execution Budget Consumption (40%)</span>
+<span class="font-mono text-on-surface">0.008 / 0.020 MON</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full transition-all duration-500" style="width: 40%"></div>
+</div>
+</div>
+<!-- Policy Rule Box -->
+<div class="p-space-md rounded-lg bg-tertiary-container/10 flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-tertiary text-[20px]">security</span>
+<div>
+<p class="font-label-sm text-label-sm font-semibold text-on-surface">AgentFlow Policy Active</p>
+<p class="font-body-sm text-body-sm text-secondary">Max limit 0.005 MON per individual API invoke</p>
+</div>
+</div>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-lowest text-tertiary font-label-sm text-label-sm shadow-sm">Strict Enforce</span>
+</div>
+</div>
+<!-- Real-time Micro-invoices Table -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px] text-secondary">receipt_long</span>
+<h3 class="font-label-md text-label-md text-on-surface">Micropayment Stream</h3>
+</div>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm font-mono">3 Txns</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<!-- Invoice 1 -->
+<div class="p-space-md rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[16px]">travel_explore</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">WebScrapePro API</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono">Payload: 2.4 MB • HTTP 200</span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-label-sm text-label-sm font-mono font-semibold text-primary">-0.003 MON</span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-tertiary">
+<span class="material-symbols-outlined text-[12px]">done_all</span> Settled
+                </span>
+</div>
+</div>
+<!-- Invoice 2 -->
+<div class="p-space-md rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[16px]">currency_exchange</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">CurrencyRateAPI</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono">FX Matrix FX-USD • HTTP 200</span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-label-sm text-label-sm font-mono font-semibold text-primary">-0.001 MON</span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-tertiary">
+<span class="material-symbols-outlined text-[12px]">done_all</span> Settled
+                </span>
+</div>
+</div>
+<!-- Invoice 3 -->
+<div class="p-space-md rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[16px]">neurology</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">LLM Reasoning Node</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono">Llama-3-70b-Quant • HTTP 200</span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-label-sm text-label-sm font-mono font-semibold text-primary">-0.004 MON</span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-tertiary">
+<span class="material-symbols-outlined text-[12px]">done_all</span> Settled
+                </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Emergency Operator Interventions -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-secondary">Autonomous Controls</span>
+<span class="font-label-sm text-label-sm text-secondary font-mono">Signer: 0x71C...4f9b</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+<button class="w-full py-2.5 px-space-md rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm" id="btnPauseAgent">
+<span class="material-symbols-outlined text-[18px]">pause_circle</span>
+              Pause Agent
+            </button>
+<button class="w-full py-2.5 px-space-md rounded-full bg-error/10 hover:bg-error/15 text-error font-label-md text-label-md transition-all flex items-center justify-center gap-2 active:scale-95" id="btnAbortEscrow">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+              Abort &amp; Refund
+            </button>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: Live Execution Stepper & Timeline -->
+<div class="lg:col-span-7 flex flex-col gap-space-md">
+<!-- Timeline Container Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-lg">
+<!-- Stepper Header with Live Ping & Telemetry -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between pb-space-sm gap-y-2">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight">Agent Execution Timeline</h2>
+<p class="font-body-sm text-body-sm text-secondary">Real-time state transitions verified on Monad consensus</p>
+</div>
+<div class="flex items-center gap-2 px-space-md py-1.5 rounded-full bg-surface-container-low self-start sm:self-auto">
+<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-secondary font-mono">ws://monad-rpc •</span>
+<span class="font-label-sm text-label-sm font-semibold text-tertiary font-mono">12ms latency</span>
+</div>
+</div>
+<!-- Vertical Stepper Stream -->
+<div class="relative flex flex-col gap-space-lg pl-2">
+<!-- Continuous Track Background Line -->
+<div class="absolute left-6 top-4 bottom-8 w-0.5 bg-surface-container-high -translate-x-1/2 pointer-events-none"></div>
+<!-- Step 1: Completed -->
+<div class="relative flex items-start gap-space-md group">
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex-1 bg-surface-container-low p-space-md rounded-xl transition-all group-hover:bg-surface-container">
+<div class="flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-semibold text-on-surface">Task Created &amp; Funds Locked</h4>
+<span class="font-body-sm text-body-sm text-secondary font-mono">11:42:01.082</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">
+                  0.070 MON locked in <span class="font-mono text-on-surface">AgentEscrow</span> contract (<span class="font-mono text-secondary">0x4a8...d91</span>). Gas cost: 0.00018 MON.
+                </p>
+<div class="mt-2 inline-flex items-center gap-1.5 font-label-sm text-label-sm text-tertiary">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                  Monad Block #18,492,019
+                </div>
+</div>
+</div>
+<!-- Step 2: Completed -->
+<div class="relative flex items-start gap-space-md group">
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex-1 bg-surface-container-low p-space-md rounded-xl transition-all group-hover:bg-surface-container">
+<div class="flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-semibold text-on-surface">Agent Discovers Service in Marketplace</h4>
+<span class="font-body-sm text-body-sm text-secondary font-mono">11:42:15.340</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">
+                  Matched endpoint <span class="font-medium text-on-surface">'WebScrapePro High-Speed Scraper'</span> via decentralized registry matching filter criteria.
+                </p>
+<div class="mt-2 flex items-center gap-2">
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-highest text-secondary font-label-sm text-label-sm font-mono">Service ID: #WSP-992</span>
+<span class="font-body-sm text-body-sm text-secondary">• SLA 99.98%</span>
+</div>
+</div>
+</div>
+<!-- Step 3: Completed -->
+<div class="relative flex items-start gap-space-md group">
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex-1 bg-surface-container-low p-space-md rounded-xl transition-all group-hover:bg-surface-container">
+<div class="flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-semibold text-on-surface">HTTP 402 Payment Required (0.003 MON Invoice)</h4>
+<span class="font-body-sm text-body-sm text-secondary font-mono">11:42:22.910</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">
+                  Received L402 challenge header from provider with Monad micropayment preimage hash: <span class="font-mono text-on-surface">0xa4f889...e302</span>.
+                </p>
+</div>
+</div>
+<!-- Step 4: Completed -->
+<div class="relative flex items-start gap-space-md group">
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex-1 bg-surface-container-low p-space-md rounded-xl transition-all group-hover:bg-surface-container">
+<div class="flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-semibold text-on-surface">AgentFlow Policy Check (Approved)</h4>
+<span class="font-body-sm text-body-sm text-secondary font-mono">11:42:23.012</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">
+                  Pre-flight check against user budget rules (0.003 ≤ 0.005 MON cap). Policy invariant verified cryptographically within <span class="font-mono font-medium text-tertiary">14ms</span>.
+                </p>
+</div>
+</div>
+<!-- Step 5: Completed -->
+<div class="relative flex items-start gap-space-md group">
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex-1 bg-surface-container-low p-space-md rounded-xl transition-all group-hover:bg-surface-container">
+<div class="flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-semibold text-on-surface">AgentWallet Pays Provider</h4>
+<span class="font-body-sm text-body-sm text-secondary font-mono">11:42:24.115</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">
+                  0.003 MON settled via high-throughput state channel. Preimage unlocked data stream with HTTP 200 payload return.
+                </p>
+</div>
+</div>
+<!-- Step 6: ACTIVE STEP (Pulsing Rausch Red #FF5A5F glow ring) -->
+<div class="relative flex items-start gap-space-md">
+<!-- Active Node Indicator -->
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md ring-4 ring-primary-container/25 animate-pulse">
+<span class="material-symbols-outlined text-[18px] animate-spin">autorenew</span>
+</div>
+<!-- Active Card Vessel -->
+<div class="flex-1 bg-surface-container-lowest p-space-lg rounded-xl shadow-md border-l-4 border-l-primary-container flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="px-space-sm py-0.5 rounded-full bg-primary-container/10 text-primary-container font-label-sm text-label-sm font-semibold tracking-wide uppercase">In Progress</span>
+<h4 class="font-label-md text-label-md font-bold text-on-surface">Evaluator Validates Result &amp; Signs Proof</h4>
+</div>
+<span class="font-body-sm text-body-sm text-primary-container font-mono font-medium">Running...</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                  Independent evaluator node running decentralized zk-STARK verification on scraped competitor dataset hash. Ensuring data integrity against schema invariants.
+                </p>
+<!-- Dynamic Processing Widget -->
+<div class="mt-2 p-space-md rounded-lg bg-surface-container-low flex flex-col gap-space-xs font-mono text-body-sm">
+<div class="flex justify-between items-center">
+<span class="text-secondary font-label-sm text-label-sm">zk-STARK Prover Cluster</span>
+<span class="text-primary-container font-label-sm text-label-sm font-semibold">Stage 3/4 (Synthesizing Trace)</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full w-3/4 animate-pulse"></div>
+</div>
+<div class="flex justify-between items-center font-label-sm text-label-sm text-secondary pt-1">
+<span>Hash: 0x7c9b...41e0</span>
+<span>Constraint Satisfaction: 98.4%</span>
+</div>
+</div>
+<!-- Proof Monospace Badge -->
+<div class="flex items-center gap-2 pt-1 font-body-sm text-body-sm text-secondary">
+<span class="material-symbols-outlined text-[16px] text-tertiary">fingerprint</span>
+<span class="font-mono text-on-surface">Verifier: 0xEvaluatorNode#9</span>
+<span class="text-surface-variant">•</span>
+<span>Est. completion: ~18s</span>
+</div>
+</div>
+</div>
+<!-- Step 7: Pending -->
+<div class="relative flex items-start gap-space-md opacity-60">
+<div class="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-surface-container-high text-secondary flex items-center justify-center shadow-none">
+<span class="material-symbols-outlined text-[18px]">lock_clock</span>
+</div>
+<div class="flex-1 bg-surface-container-low p-space-md rounded-xl">
+<div class="flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-medium text-secondary">AgentEscrow Settles Funds</h4>
+<span class="font-body-sm text-body-sm text-secondary font-mono">Queued</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">
+                  Final atomic release of 0.050 MON bounty to agent address upon cryptographic validation of the zero-knowledge attestation.
+                </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Real-time Agent Log Stream Console -->
+<div class="bg-inverse-surface rounded-xl p-space-lg text-inverse-on-surface shadow-sm flex flex-col gap-space-sm font-mono text-body-sm">
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-highest/20">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary-fixed-dim">RPC Agent Daemon Output</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary-fixed-dim">STDOUT • Live</span>
+</div>
+<div class="flex flex-col gap-1 text-[13px] leading-relaxed overflow-x-auto text-secondary-fixed-dim">
+<p><span class="text-tertiary-fixed font-semibold">[11:42:25.02]</span> <span class="text-on-tertiary">EXEC:</span> HTTP GET https://api.webscrapepro.eth/v2/jobs/992 completed with 200 OK</p>
+<p><span class="text-tertiary-fixed font-semibold">[11:42:26.89]</span> <span class="text-on-tertiary">DATA:</span> 48 items normalized into JSON format. Integrity digest computed.</p>
+<p><span class="text-tertiary-fixed font-semibold">[11:42:28.14]</span> <span class="text-primary-fixed-dim">ZK_GEN:</span> Initializing zk-STARK trace table for pricing validator node...</p>
+<p class="text-primary-container animate-pulse"><span class="text-tertiary-fixed font-semibold">[11:42:31.40]</span> &gt;&gt; Evaluator 0xEvNode9 listening for constraint verification root...</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+    // Micro-interaction handlers for pause and refund actions
+    const btnPause = document.getElementById('btnPauseAgent');
+    const btnAbort = document.getElementById('btnAbortEscrow');
+
+    if (btnPause) {
+      btnPause.addEventListener('click', () => {
+        const isPaused = btnPause.getAttribute('data-paused') === 'true';
+        if (!isPaused) {
+          btnPause.setAttribute('data-paused', 'true');
+          btnPause.innerHTML = '<span class="material-symbols-outlined text-[18px]">play_circle</span> Resume Agent';
+          btnPause.classList.add('bg-secondary-container');
+        } else {
+          btnPause.setAttribute('data-paused', 'false');
+          btnPause.innerHTML = '<span class="material-symbols-outlined text-[18px]">pause_circle</span> Pause Agent';
+          btnPause.classList.remove('bg-secondary-container');
+        }
+      });
+    }
+
+    if (btnAbort) {
+      btnAbort.addEventListener('click', () => {
+        if (confirm('Are you sure you want to abort this task? All unspent budget (0.012 MON) and the escrow bounty (0.050 MON) will be immediately returned to your Monad account.')) {
+          btnAbort.disabled = true;
+          btnAbort.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span> Aborting...';
+          setTimeout(() => {
+            alert('Task successfully cancelled. 0.062 MON refunded to 0x71C...4f9b.');
+            window.location.reload();
+          }, 1200);
+        }
+      });
+    }
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest border-t border-surface-container py-space-md px-gutter flex flex-col sm:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-md"><span class="font-body-sm text-body-sm text-secondary">© 2025 AgentProof Foundation. Autonomous Economic Layer.</span></div><div class="flex items-center gap-space-lg"><a class="font-label-sm text-label-sm text-secondary hover:text-on-surface transition-colors" href="#">Consensus Docs</a><a class="font-label-sm text-label-sm text-secondary hover:text-on-surface transition-colors" href="#">Security Audits</a><a class="font-label-sm text-label-sm text-secondary hover:text-on-surface transition-colors" href="#">API RPC</a></div></footer></div></body></html>
