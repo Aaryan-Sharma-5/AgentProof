@@ -150,7 +150,8 @@ def test_live_mode_reports_only_real_tx_hashes(client, live_mode):
         json={"message": "Research three competitors and produce a pricing comparison."},
     )
     assert res.status_code in (200, 202)
-    body = res.json()
+    req_id = res.json()["request_id"]
+    body = client.get(f"/v1/agent-requests/{req_id}").json()
 
     assert body["is_mock"] is False
     assert body["settled"] is True
@@ -180,7 +181,8 @@ def test_canonical_failure_is_surfaced_without_payout(client, monkeypatch):
     monkeypatch.setattr(graph_nodes.node_context, "agent_client", StubAgentClient(settled=False))
 
     res = client.post("/v1/agent-requests", json={"message": "Research three competitors and produce a pricing comparison."})
-    body = res.json()
+    req_id = res.json()["request_id"]
+    body = client.get(f"/v1/agent-requests/{req_id}").json()
 
     assert body["settled"] is False
     assert body["settlement_tx"] is None
@@ -198,7 +200,9 @@ def test_unreachable_agent_service_fails_closed(client, monkeypatch):
     monkeypatch.setattr(settings, "use_mock_payments", False)
     monkeypatch.setattr(graph_nodes.node_context, "agent_client", DeadClient())
 
-    body = client.post("/v1/agent-requests", json={"message": "Research three competitors and produce a pricing comparison."}).json()
+    res = client.post("/v1/agent-requests", json={"message": "Research three competitors and produce a pricing comparison."})
+    req_id = res.json()["request_id"]
+    body = client.get(f"/v1/agent-requests/{req_id}").json()
 
     assert body["final_status"] == "FAILED"
     assert body["settled"] is False
@@ -226,10 +230,12 @@ def test_python_has_no_settlement_capability():
 
 def test_verification_is_advisory_only(client, live_mode):
     """Advisory verification must never claim settlement authority."""
-    body = client.post(
+    res = client.post(
         "/v1/agent-requests",
         json={"message": "Research three competitors and produce a pricing comparison."},
-    ).json()
+    )
+    req_id = res.json()["request_id"]
+    body = client.get(f"/v1/agent-requests/{req_id}").json()
 
     verification = body["verification_result"]
     assert verification["is_advisory"] is True

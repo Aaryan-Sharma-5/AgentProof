@@ -62,10 +62,15 @@ def test_submit_and_get_request():
         assert res_post.status_code == 202
         data_post = res_post.json()
         assert data_post["request_id"] == "AF-INT-1"
-        assert data_post["final_status"] == "COMPLETED"
-        assert data_post["blockchain_tx_hash"] is not None
+        assert data_post["final_status"] in ("RECEIVED", "COMPLETED")
 
         # 3. Retrieve request by ID
+        res_get = client.get("/v1/agent-requests/AF-INT-1")
+        assert res_get.status_code == 200
+        data_get = res_get.json()
+        assert data_get["request_id"] == "AF-INT-1"
+        assert data_get["final_status"] == "COMPLETED"
+        assert data_get["blockchain_tx_hash"] is not None
         res_get = client.get("/v1/agent-requests/AF-INT-1")
         assert res_get.status_code == 200
         data_get = res_get.json()
