@@ -50,3 +50,18 @@ def test_ssrf_blocks_ipv6_and_mapped_addresses():
     for url in ipv6_forbidden:
         safe, err = validate_url_safe(url, allow_local_mock=False, enforce_strict_https=False)
         assert safe is False, f"Expected {url} to be blocked by SSRF defense! Got: {err}"
+
+
+def test_ssrf_blocks_octal_hex_and_trailing_dots():
+    evasion_urls = [
+        "http://0177.0.0.1/", # octal 127.0.0.1
+        "http://0x7f.0.0.1/", # hex octet 127.0.0.1
+        "http://0x007f000001/", # padded hex 127.0.0.1
+        "http://127.1/", # 2-part BSD IP notation
+        "http://169.254.169.254./metadata", # trailing dot on cloud metadata IP
+        "http://metadata.google.internal./computeMetadata", # trailing dot on cloud metadata hostname
+    ]
+    for url in evasion_urls:
+        safe, err = validate_url_safe(url, allow_local_mock=False, enforce_strict_https=False)
+        assert safe is False, f"Expected evasion URL {url} to be blocked by SSRF defense! Got safe={safe}, err={err}"
+
