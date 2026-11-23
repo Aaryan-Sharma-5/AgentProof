@@ -67,6 +67,51 @@ def is_ip_private_or_reserved(ip: ipaddress.IPv4Address | ipaddress.IPv6Address)
     return False
 
 
+def _parse_numeric_ipv4(host: str) -> Optional[ipaddress.IPv4Address]:
+    """
+    Parses IPv4 address representations supporting decimal, octal, hex octets,
+    as well as 1-4 part dotted notation (BSD/POSIX socket convention).
+    """
+    parts = host.split(".")
+    if not (1 <= len(parts) <= 4):
+        return None
+    try:
+        nums = []
+        for p in parts:
+            if not p:
+                return None
+            if p.lower().startswith("0x"):
+                n = int(p, 16)
+            elif len(p) > 1 and p.startswith("0") and p.isdigit():
+                # Octal representation (leading zeros)
+                n = int(p, 8)
+            else:
+                n = int(p, 10)
+            nums.append(n)
+
+        if len(nums) == 4:
+            if any(n < 0 or n > 255 for n in nums):
+                return None
+            val = (nums[0] << 24) | (nums[1] << 16) | (nums[2] << 8) | nums[3]
+        elif len(nums) == 3:
+            if nums[0] < 0 or nums[0] > 255 or nums[1] < 0 or nums[1] > 255 or nums[2] < 0 or nums[2] > 0xFFFF:
+                return None
+            val = (nums[0] << 24) | (nums[1] << 16) | nums[2]
+        elif len(nums) == 2:
+            if nums[0] < 0 or nums[0] > 255 or nums[1] < 0 or nums[1] > 0xFFFFFF:
+                return None
+            val = (nums[0] << 24) | nums[1]
+        elif len(nums) == 1:
+            if nums[0] < 0 or nums[0] > 0xFFFFFFFF:
+                return None
+            val = nums[0]
+        else:
+            return None
+        return ipaddress.IPv4Address(val)
+    except (ValueError, OverflowError):
+        return None
+
+
 def validate_url_safe(
     url: str,
     allow_local_mock: bool = False,
@@ -101,39 +146,40 @@ def validate_url_safe(
     if not hostname:
         return False, "Missing hostname in URL"
 
-    hostname_lower = hostname.lower().strip("[]")
+    # Normalize hostname by stripping IPv6 brackets and trailing dot (FQDN canonicalization)
+    hostname_clean = hostname.lower().strip("[]").rstrip(".")
 
     # Block well-known cloud metadata endpoints
-    if hostname_lower in CLOUD_METADATA_HOSTS:
+    if hostname_clean in CLOUD_METADATA_HOSTS:
         return False, f"Blocked request to cloud metadata host '{hostname}'."
 
     # In local testing/mocking mode, allow explicit localhost / 127.0.0.1 / ::1 if requested
-    if allow_local_mock and (hostname_lower in ("localhost", "127.0.0.1", "::1")):
+    if allow_local_mock and (hostname_clean in ("localhost", "127.0.0.1", "::1")):
         return True, None
 
-    # Check for direct IP address literal (supports IPv4, IPv6, integer, and hex formats)
-    try:
-        if hostname_lower.isdigit():
-            ip = ipaddress.ip_address(int(hostname_lower))
-        elif hostname_lower.startswith("0x") and len(hostname_lower) <= 10:
-            ip = ipaddress.ip_address(int(hostname_lower, 16))
-        else:
-            ip = ipaddress.ip_address(hostname_lower)
-        if is_ip_private_or_reserved(ip):
-            return False, f"Blocked access to private or reserved IP address '{ip}'."
-    except ValueError:
-        # Hostname is a domain name, not an IP literal. Resolve DNS to check target IP.
+    # Check for direct IP address literal (supports IPv4 numeric notations and IPv6 formats)
+    parsed_ip = _parse_numeric_ipv4(hostname_clean)
+    if parsed_ip is not None:
+        if is_ip_private_or_reserved(parsed_ip):
+            return False, f"Blocked access to private or reserved IP address '{parsed_ip}'."
+    else:
         try:
-            # We resolve the host to detect internal DNS rebinding / private resolutions
-            addr_info = socket.getaddrinfo(hostname, None)
-            for item in addr_info:
-                sockaddr = item[4]
-                ip_str = sockaddr[0]
-                resolved_ip = ipaddress.ip_address(ip_str)
-                if not allow_local_mock and is_ip_private_or_reserved(resolved_ip):
-                    return False, f"Domain '{hostname}' resolves to private IP '{resolved_ip}'."
-        except socket.gaierror:
-            # DNS resolution failed or offline; if not strictly required, allow domain or flag
-            pass
+            ip = ipaddress.ip_address(hostname_clean)
+            if is_ip_private_or_reserved(ip):
+                return False, f"Blocked access to private or reserved IP address '{ip}'."
+        except ValueError:
+            # Hostname is a domain name, not an IP literal. Resolve DNS to check target IP.
+            try:
+                # We resolve the host to detect internal DNS rebinding / private resolutions
+                addr_info = socket.getaddrinfo(hostname_clean, None)
+                for item in addr_info:
+                    sockaddr = item[4]
+                    ip_str = sockaddr[0]
+                    resolved_ip = ipaddress.ip_address(ip_str)
+                    if not allow_local_mock and is_ip_private_or_reserved(resolved_ip):
+                        return False, f"Domain '{hostname}' resolves to private IP '{resolved_ip}'."
+            except socket.gaierror:
+                # DNS resolution failed or offline; if not strictly required, allow domain or flag
+                pass
 
     return True, None
